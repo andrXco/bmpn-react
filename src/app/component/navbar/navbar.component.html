@@ -1,0 +1,37 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" routerLink="/procesos">BPMN</a>
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/procesos" routerLinkActive="active">Procesos</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/roles" routerLinkActive="active">Roles de proceso</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/empresas/registro" routerLinkActive="active">Registrar empresa</a>
+      </li>
+    </ul>
+    <div class="d-flex align-items-center gap-2">
+      <label for="usuarioActivo" class="text-light mb-0">ID de usuario:</label>
+      <input
+        #entrada
+        id="usuarioActivo"
+        type="number"
+        min="1"
+        class="form-control form-control-sm"
+        style="width: 90px"
+        [value]="usuarioActivo.usuarioId ?? ''"
+      />
+      <button type="button" class="btn btn-sm btn-light" (click)="guardar(entrada.value)">Usar</button>
+      @if (usuarioActivo.usuarioId !== null) {
+        <button type="button" class="btn btn-sm btn-outline-light" (click)="limpiar()">Quitar</button>
+      }
+    </div>
+  </div>
+</nav>
+@if (usuarioActivo.usuarioId === null) {
+  <div class="alert alert-warning rounded-0 mb-0 text-center">
+    No hay usuario activo. Escribe el ID de un usuario arriba (por ejemplo el del administrador) o registra una empresa.
+  </div>
+}

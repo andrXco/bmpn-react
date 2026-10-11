@@ -1,0 +1,61 @@
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success' && proceso(); as p) {
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">{{ p.nombre }}</h2>
+    <div>
+      <a class="btn btn-outline-primary me-2" [routerLink]="['/procesos', p.id, 'pools']">Pools</a>
+      @if (p.activo) {
+        <a class="btn btn-outline-secondary me-2" [routerLink]="['/procesos', p.id, 'editar']">Editar</a>
+      }
+      <a class="btn btn-outline-secondary" routerLink="/procesos">Volver</a>
+    </div>
+  </div>
+
+  <dl class="row">
+    <dt class="col-sm-3">Descripción</dt>
+    <dd class="col-sm-9">{{ p.descripcion }}</dd>
+    <dt class="col-sm-3">Categoría</dt>
+    <dd class="col-sm-9">{{ p.categoria }}</dd>
+    <dt class="col-sm-3">Estado</dt>
+    <dd class="col-sm-9">{{ p.estado }}</dd>
+    <dt class="col-sm-3">Pool propietario</dt>
+    <dd class="col-sm-9">{{ p.poolPropietarioNombre }}</dd>
+    <dt class="col-sm-3">Creado</dt>
+    <dd class="col-sm-9">{{ p.fechaCreacion | date: 'medium' }}</dd>
+    <dt class="col-sm-3">Actualizado</dt>
+    <dd class="col-sm-9">{{ p.fechaActualizacion | date: 'medium' }}</dd>
+    <dt class="col-sm-3">Activo</dt>
+    <dd class="col-sm-9">{{ p.activo ? 'Sí' : 'No' }}</dd>
+  </dl>
+
+  <h4 class="mt-4">Historial</h4>
+  @if (historial().length === 0) {
+    <p class="text-muted">Sin modificaciones registradas.</p>
+  } @else {
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Acción</th>
+          <th>Detalle</th>
+          <th>Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (registro of historial(); track registro.id) {
+          <tr>
+            <td>{{ registro.fecha | date: 'short' }}</td>
+            <td>{{ registro.accion }}</td>
+            <td>{{ registro.detalle }}</td>
+            <td>{{ registro.nombreUsuario }} ({{ registro.emailUsuario }})</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

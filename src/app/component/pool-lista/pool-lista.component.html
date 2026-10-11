@@ -1,0 +1,53 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Pools del proceso {{ procesoId }}</h2>
+  <div>
+    <a class="btn btn-primary me-2" [routerLink]="['/procesos', procesoId, 'pools', 'nuevo']">Nuevo pool</a>
+    <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId]">Volver al proceso</a>
+  </div>
+</div>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success' && pools().length === 0) {
+  <p class="text-muted">Este proceso aún no tiene pools.</p>
+}
+
+@if (pools().length > 0) {
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Orden</th>
+        <th>Nombre</th>
+        <th>Tipo</th>
+        <th>Empresa participante</th>
+        <th>Canal externo</th>
+        <th>Caja negra</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (pool of pools(); track pool.id) {
+        <tr>
+          <td>{{ pool.orden }}</td>
+          <td>{{ pool.nombre }}</td>
+          <td>{{ pool.tipoParticipante }}</td>
+          <td>{{ pool.empresaParticipanteId ?? '—' }}</td>
+          <td>{{ pool.canalExterno ?? '—' }}</td>
+          <td>{{ pool.cajaNegra ? 'Sí' : 'No' }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-secondary me-1"
+              [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'editar']">Editar</a>
+            <button type="button" class="btn btn-sm btn-outline-danger"
+              [disabled]="pool.tipoParticipante === tipoParticipante.EMPRESA_PROPIETARIA"
+              [title]="pool.tipoParticipante === tipoParticipante.EMPRESA_PROPIETARIA ? 'El pool de la empresa propietaria no se puede eliminar' : 'Eliminar pool'"
+              (click)="eliminar(pool)">Eliminar</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

@@ -1,0 +1,12 @@
+@if (error; as e) {
+  <div class="alert alert-danger" role="alert">
+    <strong>{{ e.mensaje }}</strong>
+    @if (e.detalles.length > 0) {
+      <ul class="mb-0 mt-2">
+        @for (detalle of e.detalles; track $index) {
+          <li>{{ detalle }}</li>
+        }
+      </ul>
+    }
+  </div>
+}

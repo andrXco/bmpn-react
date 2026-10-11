@@ -1,0 +1,96 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Procesos</h2>
+  <a class="btn btn-primary" routerLink="/procesos/nuevo">Nuevo proceso</a>
+</div>
+
+<form class="row g-2 mb-3" [formGroup]="filtroForm" (ngSubmit)="buscar()">
+  <div class="col-md-3">
+    <input class="form-control" placeholder="Nombre" formControlName="nombre" />
+  </div>
+  <div class="col-md-3">
+    <input class="form-control" placeholder="Categoría" formControlName="categoria" />
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" formControlName="estado">
+      <option value="">Todos los estados</option>
+      @for (opcion of estados; track opcion) {
+        <option [value]="opcion">{{ opcion }}</option>
+      }
+    </select>
+  </div>
+  <div class="col-md-2 d-flex align-items-center">
+    <div class="form-check">
+      <input id="incluirInactivos" type="checkbox" class="form-check-input" formControlName="incluirInactivos" />
+      <label for="incluirInactivos" class="form-check-label">Incluir eliminados</label>
+    </div>
+  </div>
+  <div class="col-md-2 d-flex gap-2">
+    <button type="submit" class="btn btn-secondary">Buscar</button>
+    <button type="button" class="btn btn-outline-secondary" (click)="limpiarFiltros()">Limpiar</button>
+  </div>
+</form>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success' && pagina(); as p) {
+  @if (p.empty) {
+    <p class="text-muted">No hay procesos para mostrar.</p>
+  } @else {
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Categoría</th>
+          <th>Estado</th>
+          <th>Última actualización</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (proceso of p.content; track proceso.id) {
+          <tr>
+            <td>
+              {{ proceso.nombre }}
+              @if (!proceso.activo) {
+                <span class="badge bg-secondary ms-1">Eliminado</span>
+              }
+            </td>
+            <td>{{ proceso.categoria }}</td>
+            <td>
+              <span class="badge" [class.bg-success]="proceso.estado === estadoProceso.PUBLICADO"
+                [class.bg-warning]="proceso.estado === estadoProceso.BORRADOR"
+                [class.text-dark]="proceso.estado === estadoProceso.BORRADOR">
+                {{ proceso.estado }}
+              </span>
+            </td>
+            <td>{{ proceso.fechaActualizacion | date: 'short' }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary me-1" [routerLink]="['/procesos', proceso.id]">Ver</a>
+              <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/procesos', proceso.id, 'pools']">Pools</a>
+              @if (proceso.activo) {
+                <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/procesos', proceso.id, 'editar']">Editar</a>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(proceso)">Eliminar</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="text-muted">
+        Página {{ p.number + 1 }} de {{ p.totalPages }} · {{ p.totalElements }} procesos
+      </span>
+      <div class="btn-group">
+        <button type="button" class="btn btn-outline-secondary" [disabled]="p.first"
+          (click)="irAPagina(p.number - 1)">Anterior</button>
+        <button type="button" class="btn btn-outline-secondary" [disabled]="p.last"
+          (click)="irAPagina(p.number + 1)">Siguiente</button>
+      </div>
+    </div>
+  }
+}
