@@ -1,0 +1,49 @@
+<h2>{{ id === null ? 'Nuevo proceso' : 'Editar proceso' }}</h2>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+<form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+  <div class="mb-3">
+    <label for="nombre" class="form-label">Nombre</label>
+    <input id="nombre" class="form-control" formControlName="nombre" />
+    @if (campoInvalido(form.controls.nombre)) {
+      <div class="text-danger small">El nombre es obligatorio (máx. 150 caracteres).</div>
+    }
+  </div>
+
+  <div class="mb-3">
+    <label for="descripcion" class="form-label">Descripción</label>
+    <textarea id="descripcion" rows="3" class="form-control" formControlName="descripcion"></textarea>
+    @if (campoInvalido(form.controls.descripcion)) {
+      <div class="text-danger small">La descripción es obligatoria.</div>
+    }
+  </div>
+
+  <div class="mb-3">
+    <label for="categoria" class="form-label">Categoría</label>
+    <input id="categoria" class="form-control" formControlName="categoria" />
+    @if (campoInvalido(form.controls.categoria)) {
+      <div class="text-danger small">La categoría es obligatoria (máx. 100 caracteres).</div>
+    }
+  </div>
+
+  @if (id !== null) {
+    <div class="mb-3">
+      <label for="estado" class="form-label">Estado</label>
+      <select id="estado" class="form-select" formControlName="estado">
+        @for (opcion of estados; track opcion) {
+          <option [value]="opcion">{{ opcion }}</option>
+        }
+      </select>
+    </div>
+  }
+
+  <button type="submit" class="btn btn-primary me-2" [disabled]="estado() === 'loading'">
+    {{ estado() === 'loading' ? 'Guardando...' : 'Guardar' }}
+  </button>
+  <a class="btn btn-outline-secondary" routerLink="/procesos">Cancelar</a>
+</form>

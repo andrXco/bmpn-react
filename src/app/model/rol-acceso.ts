@@ -1,0 +1,5 @@
+export enum RolAcceso {
+  ADMINISTRADOR = 'ADMINISTRADOR',
+  EDITOR = 'EDITOR',
+  SOLO_LECTURA = 'SOLO_LECTURA'
+}
