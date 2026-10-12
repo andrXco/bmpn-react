@@ -1,0 +1,39 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container">
+    <a class="navbar-brand" routerLink="/procesos">BPMN</a>
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/procesos" routerLinkActive="active">Procesos</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/roles" routerLinkActive="active">Roles de proceso</a>
+      </li>
+      @if (usuarioActivo.usuarioId !== null && usuarioActivo.puedeAdministrarUsuarios) {
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+        </li>
+      }
+      <li class="nav-item">
+        <a class="nav-link" routerLink="/empresas/registro" routerLinkActive="active">Registrar empresa</a>
+      </li>
+    </ul>
+    <div class="d-flex align-items-center gap-2">
+      @if (usuarioActivo.usuarioId !== null) {
+        @if (usuarioActivo.sesion; as sesion) {
+          <span class="text-light small">{{ sesion.nombreCompleto }} · {{ sesion.rolAcceso }}</span>
+        } @else {
+          <span class="text-light small">Usuario {{ usuarioActivo.usuarioId }}</span>
+        }
+        <button type="button" class="btn btn-sm btn-outline-light" (click)="salir()">Salir</button>
+      } @else {
+        <a class="btn btn-sm btn-light" routerLink="/login">Iniciar sesión</a>
+      }
+    </div>
+  </div>
+</nav>
+@if (usuarioActivo.usuarioId === null) {
+  <div class="alert alert-warning rounded-0 mb-0 text-center">
+    No hay una sesión iniciada. <a routerLink="/login">Inicia sesión</a> o
+    <a routerLink="/empresas/registro">registra una empresa</a>.
+  </div>
+}

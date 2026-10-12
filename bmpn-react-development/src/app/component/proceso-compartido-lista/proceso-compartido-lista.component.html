@@ -1,0 +1,54 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Proceso {{ procesoId }} compartido con</h2>
+  <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId]">Volver al proceso</a>
+</div>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+<form [formGroup]="form" (ngSubmit)="compartir()" class="row g-2 align-items-start mb-4" novalidate>
+  <div class="col-md-4">
+    <label for="empresaInvitadaId" class="form-label">ID de la empresa invitada</label>
+    <input id="empresaInvitadaId" type="number" min="1" class="form-control" formControlName="empresaInvitadaId" />
+    @if (campoInvalido(form.controls.empresaInvitadaId)) {
+      <div class="text-danger small">Escribe el ID de la empresa (número mayor a 0).</div>
+    }
+  </div>
+  <div class="col-md-3 align-self-end">
+    <button type="submit" class="btn btn-primary" [disabled]="guardando()">
+      {{ guardando() ? 'Compartiendo...' : 'Compartir' }}
+    </button>
+  </div>
+</form>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success' && compartidos().length === 0) {
+  <p class="text-muted">Este proceso no se ha compartido con ninguna empresa.</p>
+}
+
+@if (compartidos().length > 0) {
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Empresa</th>
+        <th>ID empresa</th>
+        <th>Compartido el</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (compartido of compartidos(); track compartido.id) {
+        <tr>
+          <td>{{ compartido.nombreEmpresaInvitada }}</td>
+          <td>{{ compartido.empresaInvitadaId }}</td>
+          <td>{{ compartido.fechaCreacion | date: 'medium' }}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="revocar(compartido)">Revocar</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

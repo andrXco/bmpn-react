@@ -1,0 +1,66 @@
+<h2>{{ poolId === null ? 'Nuevo pool' : 'Editar pool' }} (proceso {{ procesoId }})</h2>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+<form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+  <div class="mb-3">
+    <label for="nombre" class="form-label">Nombre</label>
+    <input id="nombre" class="form-control" formControlName="nombre" />
+    @if (campoInvalido(form.controls.nombre)) {
+      <div class="text-danger small">El nombre es obligatorio (máx. 150 caracteres).</div>
+    }
+  </div>
+
+  <!-- Al crear se elige el tipo; al editar el tipo y la empresa no cambian -->
+  @if (poolId === null) {
+    <div class="mb-3">
+      <label for="tipoParticipante" class="form-label">Tipo de participante</label>
+      <select id="tipoParticipante" class="form-select" formControlName="tipoParticipante">
+        @for (tipo of tiposDisponibles; track tipo) {
+          <option [value]="tipo">{{ tipo }}</option>
+        }
+      </select>
+    </div>
+
+    @if (requiereEmpresa()) {
+      <div class="mb-3">
+        <label for="empresaParticipanteId" class="form-label">ID de la empresa participante</label>
+        <input id="empresaParticipanteId" type="number" min="1" class="form-control"
+          formControlName="empresaParticipanteId" />
+        <div class="form-text">La empresa debe haber sido invitada a colaborar en el proceso.</div>
+        @if (campoInvalido(form.controls.empresaParticipanteId)) {
+          <div class="text-danger small">El tipo CLIENTE o PROVEEDOR requiere la empresa participante.</div>
+        }
+      </div>
+    }
+  } @else {
+    <p>
+      <strong>Tipo:</strong> {{ form.controls.tipoParticipante.value }}
+      @if (form.controls.empresaParticipanteId.value !== null) {
+        · <strong>Empresa participante:</strong> {{ form.controls.empresaParticipanteId.value }}
+      }
+    </p>
+  }
+
+  <div class="mb-3">
+    <label for="canalExterno" class="form-label">Canal externo (opcional)</label>
+    <input id="canalExterno" class="form-control" formControlName="canalExterno" />
+    @if (campoInvalido(form.controls.canalExterno)) {
+      <div class="text-danger small">El canal no puede superar 100 caracteres.</div>
+    }
+  </div>
+
+  <div class="form-check mb-3">
+    <input id="cajaNegra" type="checkbox" class="form-check-input" formControlName="cajaNegra" />
+    <label for="cajaNegra" class="form-check-label">Caja negra</label>
+  </div>
+
+  <button type="submit" class="btn btn-primary me-2" [disabled]="estado() === 'loading'">
+    {{ estado() === 'loading' ? 'Guardando...' : 'Guardar' }}
+  </button>
+  <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId, 'pools']">Cancelar</a>
+</form>
