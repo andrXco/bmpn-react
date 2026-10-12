@@ -1,0 +1,42 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Lanes del pool {{ poolId }}</h2>
+  <div>
+    <a class="btn btn-primary me-2" [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes', 'nuevo']">Nueva lane</a>
+    <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId, 'pools']">Volver a los pools</a>
+  </div>
+</div>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success' && lanes().length === 0) {
+  <p class="text-muted">Este pool aún no tiene lanes.</p>
+}
+
+@if (lanes().length > 0) {
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Orden</th>
+        <th>Rol de proceso</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (lane of lanes(); track lane.id) {
+        <tr>
+          <td>{{ lane.orden }}</td>
+          <td>{{ lane.nombreRol }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-secondary me-1"
+              [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes', lane.id, 'editar']">Cambiar rol</a>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(lane)">Eliminar</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
