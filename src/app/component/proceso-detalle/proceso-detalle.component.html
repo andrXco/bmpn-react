@@ -8,6 +8,7 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0">{{ p.nombre }}</h2>
     <div>
+      <a class="btn btn-primary me-2" [routerLink]="['/procesos', p.id, 'diagrama']">Diagrama</a>
       <a class="btn btn-outline-primary me-2" [routerLink]="['/procesos', p.id, 'pools']">Pools</a>
       <a class="btn btn-outline-primary me-2" [routerLink]="['/procesos', p.id, 'compartidos']">Compartir</a>
       @if (p.activo) {
