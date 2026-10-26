@@ -1,5 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { API_URL } from '../config/api.config';
@@ -17,12 +17,9 @@ import { UsuarioActivoService } from './usuario-activo.service';
   providedIn: 'root'
 })
 export class RolProcesoService {
+  private readonly http = inject(HttpClient);
+  private readonly usuarioActivo = inject(UsuarioActivoService);
   private readonly url: string = `${API_URL}/roles-proceso`;
-
-  constructor(
-    private http: HttpClient,
-    private usuarioActivo: UsuarioActivoService
-  ) {}
 
   // POST /api/roles-proceso?usuarioId=
   crear(request: CrearRolProcesoRequest): Observable<RolProcesoResponse> {

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
@@ -19,10 +19,8 @@ export class LaneListaComponent implements OnInit {
   error = signal<ErrorDto | null>(null);
   estado = signal<EstadoPantalla>('idle');
 
-  constructor(
-    private laneService: LaneService,
-    private route: ActivatedRoute
-  ) {}
+  private readonly laneService = inject(LaneService);
+  private readonly route = inject(ActivatedRoute);
 
   ngOnInit(): void {
     this.procesoId = Number(this.route.snapshot.paramMap.get('procesoId'));

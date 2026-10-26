@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
@@ -15,15 +15,12 @@ import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component'
   templateUrl: './usuario-lista.component.html'
 })
 export class UsuarioListaComponent implements OnInit {
+  private readonly usuarioService = inject(UsuarioService);
+  readonly usuarioActivo = inject(UsuarioActivoService);
   usuarios = signal<UsuarioResponse[]>([]);
   error = signal<ErrorDto | null>(null);
   estado = signal<EstadoPantalla>('idle');
   roles: RolAcceso[] = [RolAcceso.ADMINISTRADOR, RolAcceso.EDITOR, RolAcceso.SOLO_LECTURA];
-
-  constructor(
-    private usuarioService: UsuarioService,
-    public usuarioActivo: UsuarioActivoService
-  ) {}
 
   ngOnInit(): void {
     this.cargar();
@@ -57,6 +54,13 @@ export class UsuarioListaComponent implements OnInit {
         this.cargar(); // vuelve a mostrar el rol real
       }
     });
+  }
+
+  cambiarRolDesdeEvento(usuario: UsuarioResponse, evento: Event): void {
+    const control = evento.target;
+    if (control instanceof HTMLSelectElement) {
+      this.cambiarRol(usuario, control.value);
+    }
   }
 
   desactivar(usuario: UsuarioResponse): void {

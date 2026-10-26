@@ -1,1 +1,115 @@
-/* You can add global styles to this file, and also import other style files */
+/* Paleta del ejemplo Angular del profesor (ui-estudiante). */
+:root {
+  --color-texto: #1f2937;
+  --color-fondo: #f5f6fa;
+  --color-barra: #1c1f4a;
+  --color-barra-enlace: #c7d2fe;
+  --color-acento: #3c59e7;
+  --color-superficie: #fff;
+  --color-borde: #e5e7eb;
+  --color-cabecera-tabla: #eef0f8;
+  --color-secundario: #6b7280;
+  --color-error: #b91c1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--color-texto);
+  background: var(--color-fondo);
+  font-family: system-ui, sans-serif;
+}
+
+/* Conserva Bootstrap para la grilla y los componentes, con la paleta del ejemplo. */
+.navbar.navbar-dark.bg-dark {
+  background-color: var(--color-barra) !important;
+}
+
+.navbar.navbar-dark .navbar-nav .nav-link {
+  color: var(--color-barra-enlace);
+}
+
+.navbar.navbar-dark .navbar-nav .nav-link:hover,
+.navbar.navbar-dark .navbar-nav .nav-link.active {
+  color: var(--color-superficie);
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--color-acento);
+  --bs-btn-border-color: var(--color-acento);
+  --bs-btn-hover-bg: #304bd0;
+  --bs-btn-hover-border-color: #304bd0;
+  --bs-btn-active-bg: #293fb3;
+  --bs-btn-active-border-color: #293fb3;
+}
+
+main.container {
+  max-width: 900px;
+  min-height: calc(100vh - 7rem);
+}
+
+main h2,
+main h3,
+main h4 {
+  color: var(--color-barra);
+}
+
+/* Formularios como superficies legibles, siguiendo el ejemplo de clase. */
+main form:not(.row) {
+  max-width: 680px;
+  padding: 1.25rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+}
+
+main form.row {
+  padding: 1rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+}
+
+.form-control,
+.form-select {
+  border-color: #cbd5e1;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--color-acento);
+  box-shadow: 0 0 0 0.2rem rgb(60 89 231 / 15%);
+}
+
+.table {
+  --bs-table-bg: var(--color-superficie);
+  --bs-table-hover-bg: #f8f9fc;
+  border: 1px solid var(--color-borde);
+}
+
+.table thead th {
+  background: var(--color-cabecera-tabla);
+  color: var(--color-barra);
+}
+
+.text-muted {
+  color: var(--color-secundario) !important;
+}
+
+.text-danger {
+  color: var(--color-error) !important;
+}
+
+@media (max-width: 640px) {
+  main.container {
+    padding-inline: 1rem;
+  }
+
+  main form:not(.row),
+  main form.row {
+    padding: 1rem;
+  }
+}

@@ -35,7 +35,7 @@
           <td>
             @if (usuario.activo) {
               <select class="form-select form-select-sm" [value]="usuario.rolAcceso"
-                (change)="cambiarRol(usuario, $any($event.target).value)">
+                (change)="cambiarRolDesdeEvento(usuario, $event)">
                 @for (rol of roles; track rol) {
                   <option [value]="rol" [selected]="rol === usuario.rolAcceso">{{ rol }}</option>
                 }

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
@@ -18,10 +18,8 @@ export class ProcesoDetalleComponent implements OnInit {
   historial = signal<HistorialResponse[]>([]);
   error = signal<ErrorDto | null>(null);
 
-  constructor(
-    private procesoService: ProcesoService,
-    private route: ActivatedRoute
-  ) {}
+  private readonly procesoService = inject(ProcesoService);
+  private readonly route = inject(ActivatedRoute);
 
   ngOnInit(): void {
     const id: number = Number(this.route.snapshot.paramMap.get('id'));

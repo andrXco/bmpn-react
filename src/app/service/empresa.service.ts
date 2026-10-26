@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { API_URL } from '../config/api.config';
@@ -10,9 +10,8 @@ import { manejarError } from '../util/errores';
   providedIn: 'root'
 })
 export class EmpresaService {
+  private readonly http = inject(HttpClient);
   private readonly url: string = `${API_URL}/empresas`;
-
-  constructor(private http: HttpClient) {}
 
   // POST /api/empresas
   registrar(request: RegistrarEmpresaRequest): Observable<EmpresaResponse> {

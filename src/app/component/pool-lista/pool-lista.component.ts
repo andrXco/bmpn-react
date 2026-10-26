@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
@@ -18,10 +18,8 @@ export class PoolListaComponent implements OnInit {
   estado = signal<EstadoPantalla>('idle');
   tipoParticipante: typeof TipoParticipante = TipoParticipante;
 
-  constructor(
-    private poolService: PoolService,
-    private route: ActivatedRoute
-  ) {}
+  private readonly poolService = inject(PoolService);
+  private readonly route = inject(ActivatedRoute);
 
   ngOnInit(): void {
     this.procesoId = Number(this.route.snapshot.paramMap.get('procesoId'));

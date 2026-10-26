@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { API_URL } from '../config/api.config';
@@ -11,10 +11,8 @@ import { UsuarioActivoService } from './usuario-activo.service';
   providedIn: 'root'
 })
 export class ProcesoCompartidoService {
-  constructor(
-    private http: HttpClient,
-    private usuarioActivo: UsuarioActivoService
-  ) {}
+  private readonly http = inject(HttpClient);
+  private readonly usuarioActivo = inject(UsuarioActivoService);
 
   private urlBase(procesoId: number): string {
     return `${API_URL}/procesos/${procesoId}/compartidos`;
