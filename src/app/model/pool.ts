@@ -1,3 +1,5 @@
+import { RolAcceso } from './rol-acceso';
+
 export enum TipoParticipante {
   EMPRESA_PROPIETARIA = 'EMPRESA_PROPIETARIA',
   CLIENTE = 'CLIENTE',
@@ -29,4 +31,33 @@ export interface PoolResponse {
   cajaNegra: boolean;
   orden: number;
   activo: boolean;
+}
+
+// HU-24: roles de proceso que se pueden usar en las lanes del pool
+export interface AsociarRolPoolRequest {
+  rolProcesoId: number;
+}
+
+export interface RolPoolResponse {
+  poolId: number;
+  rolProcesoId: number;
+  nombreRol: string;
+  activo: boolean;
+}
+
+// HU-24: que puede hacer cada rol de acceso con los pools y lanes
+export interface PermisoPoolRequest {
+  rolAcceso: RolAcceso;
+  puedeCrear: boolean;
+  puedeEditar: boolean;
+  puedeEliminar: boolean;
+}
+
+export interface PermisoPoolResponse {
+  id: number;
+  poolId: number;
+  rolAcceso: RolAcceso;
+  puedeCrear: boolean;
+  puedeEditar: boolean;
+  puedeEliminar: boolean;
 }
