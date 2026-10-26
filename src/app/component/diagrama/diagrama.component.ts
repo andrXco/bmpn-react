@@ -82,6 +82,7 @@ export class DiagramaComponent implements OnInit {
   private arcos: ArcoResponse[] = [];
   private mensajes: MensajeResponse[] = [];
   private lanes: LaneResponse[] = [];
+  private ubicados: NodoDiagrama[] = [];
 
   seleccionado = signal<NodoDiagrama | null>(null);
 
@@ -214,14 +215,23 @@ export class DiagramaComponent implements OnInit {
   }
 
   private crearLineas(nodos: NodoDiagrama[], pools: PoolDiagrama[]): LineaDiagrama[] {
+    this.ubicados = nodos;
     const porId = new Map<number, NodoDiagrama>(nodos.map(n => [n.id, n]));
     const lineas: LineaDiagrama[] = [];
 
-    this.arcos.forEach(arco => {
+    // Cada punta del rombo (arriba o abajo) la usa solo la salida hacia el destino mas cercano
+    const puntasUsadas = new Set<string>();
+    const ordenados: ArcoResponse[] = [...this.arcos]
+      .sort((a, b) => (porId.get(a.destinoId)?.x ?? 0) - (porId.get(b.destinoId)?.x ?? 0));
+
+    ordenados.forEach(arco => {
       const origen: NodoDiagrama | undefined = porId.get(arco.origenId);
       const destino: NodoDiagrama | undefined = porId.get(arco.destinoId);
       if (origen && destino) {
-        lineas.push(this.unirArco(origen, destino, arco.condicion ?? arco.etiqueta));
+        const punta: string = `${origen.id}-${destino.y < origen.y ? 'arriba' : 'abajo'}`;
+        const usarPunta: boolean = !puntasUsadas.has(punta);
+        puntasUsadas.add(punta);
+        lineas.push(this.unirArco(origen, destino, arco.condicion ?? arco.etiqueta, usarPunta));
       }
     });
 
@@ -259,7 +269,8 @@ export class DiagramaComponent implements OnInit {
   }
 
   // Arco en angulo recto: sale por la derecha del origen y entra por la izquierda del destino
-  private unirArco(origen: NodoDiagrama, destino: NodoDiagrama, texto: string | null): LineaDiagrama {
+  private unirArco(origen: NodoDiagrama, destino: NodoDiagrama, texto: string | null,
+                   usarPunta: boolean): LineaDiagrama {
     const cxO: number = origen.x + ANCHO_NODO / 2;
     const cyO: number = origen.y + ALTO_NODO / 2;
     const cxD: number = destino.x + ANCHO_NODO / 2;
@@ -268,13 +279,31 @@ export class DiagramaComponent implements OnInit {
     const rD = this.radio(destino);
 
     if (destino.x >= origen.x + ANCHO_NODO) {
-      const x1: number = cxO + rO.ancho;
       const x2: number = cxD - rD.ancho;
-      if (cyO === cyD) {
-        return this.linea('arco', [[x1, cyO], [x2, cyD]], (x1 + x2) / 2, cyO - 5, texto);
+
+      // Un gateway hacia otra fila sale por la punta de arriba o de abajo del rombo
+      if (origen.tipo === 'GATEWAY' && cyO !== cyD) {
+        if (usarPunta) {
+          const punta: number = cyD < cyO ? cyO - rO.alto : cyO + rO.alto;
+          return this.linea('arco', [[cxO, punta], [cxO, cyD], [x2, cyD]], cxO + 14, (punta + cyD) / 2, texto);
+        }
+        // La punta ya esta ocupada: sale por la derecha y sube o baja justo antes del destino
+        const x1: number = cxO + rO.ancho;
+        return this.linea('arco', [[x1, cyO], [x2 - 20, cyO], [x2 - 20, cyD], [x2, cyD]], x1 + 16, cyO - 5, texto);
       }
-      // Baja o sube en el punto medio, o justo al lado de la figura si sale de un gateway
-      const quiebre: number = origen.tipo === 'GATEWAY' ? x1 + 20 : (x1 + x2) / 2;
+
+      const x1: number = cxO + rO.ancho;
+      if (cyO === cyD) {
+        // Si hay otro elemento en medio, la flecha pasa por encima de el
+        if (this.hayElementoEntre(origen, destino)) {
+          const arriba: number = origen.y - 8;
+          return this.linea('arco', [[x1, cyO], [x1 + 12, cyO], [x1 + 12, arriba], [x2 - 12, arriba], [x2 - 12, cyD], [x2, cyD]],
+            (x1 + x2) / 2, arriba - 4, texto);
+        }
+        const textoX: number = origen.tipo === 'GATEWAY' ? x1 + 16 : (x1 + x2) / 2;
+        return this.linea('arco', [[x1, cyO], [x2, cyD]], textoX, cyO - 5, texto);
+      }
+      const quiebre: number = (x1 + x2) / 2;
       return this.linea('arco', [[x1, cyO], [quiebre, cyO], [quiebre, cyD], [x2, cyD]],
         quiebre + 10, (cyO + cyD) / 2, texto);
     }
@@ -292,6 +321,10 @@ export class DiagramaComponent implements OnInit {
     const abajo: number = Math.max(origen.y, destino.y) + ALTO_NODO + 15;
     return this.linea('arco', [[cxO, cyO + rO.alto], [cxO, abajo], [cxD, abajo], [cxD, cyD + rD.alto]],
       (cxO + cxD) / 2, abajo - 4, texto);
+  }
+
+  private hayElementoEntre(origen: NodoDiagrama, destino: NodoDiagrama): boolean {
+    return this.ubicados.some(n => n.y === origen.y && n.x > origen.x && n.x < destino.x);
   }
 
   // Mensaje entre pools: baja (o sube) del evento que envia al que recibe
