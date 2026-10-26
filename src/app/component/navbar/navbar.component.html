@@ -8,30 +8,32 @@
       <li class="nav-item">
         <a class="nav-link" routerLink="/roles" routerLinkActive="active">Roles de proceso</a>
       </li>
+      @if (usuarioActivo.usuarioId !== null && usuarioActivo.puedeAdministrarUsuarios) {
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+        </li>
+      }
       <li class="nav-item">
         <a class="nav-link" routerLink="/empresas/registro" routerLinkActive="active">Registrar empresa</a>
       </li>
     </ul>
     <div class="d-flex align-items-center gap-2">
-      <label for="usuarioActivo" class="text-light mb-0">ID de usuario:</label>
-      <input
-        #entrada
-        id="usuarioActivo"
-        type="number"
-        min="1"
-        class="form-control form-control-sm"
-        style="width: 90px"
-        [value]="usuarioActivo.usuarioId ?? ''"
-      />
-      <button type="button" class="btn btn-sm btn-light" (click)="guardar(entrada.value)">Usar</button>
       @if (usuarioActivo.usuarioId !== null) {
-        <button type="button" class="btn btn-sm btn-outline-light" (click)="limpiar()">Quitar</button>
+        @if (usuarioActivo.sesion; as sesion) {
+          <span class="text-light small">{{ sesion.nombreCompleto }} · {{ sesion.rolAcceso }}</span>
+        } @else {
+          <span class="text-light small">Usuario {{ usuarioActivo.usuarioId }}</span>
+        }
+        <button type="button" class="btn btn-sm btn-outline-light" (click)="salir()">Salir</button>
+      } @else {
+        <a class="btn btn-sm btn-light" routerLink="/login">Iniciar sesión</a>
       }
     </div>
   </div>
 </nav>
 @if (usuarioActivo.usuarioId === null) {
   <div class="alert alert-warning rounded-0 mb-0 text-center">
-    No hay usuario activo. Escribe el ID de un usuario arriba (por ejemplo el del administrador) o registra una empresa.
+    No hay una sesión iniciada. <a routerLink="/login">Inicia sesión</a> o
+    <a routerLink="/empresas/registro">registra una empresa</a>.
   </div>
 }

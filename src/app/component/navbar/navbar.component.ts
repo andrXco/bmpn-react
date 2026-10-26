@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { UsuarioActivoService } from '../../service/usuario-activo.service';
 
 @Component({
@@ -8,16 +8,14 @@ import { UsuarioActivoService } from '../../service/usuario-activo.service';
   templateUrl: './navbar.component.html'
 })
 export class NavbarComponent {
-  constructor(public usuarioActivo: UsuarioActivoService) {}
+  constructor(
+    public usuarioActivo: UsuarioActivoService,
+    private router: Router
+  ) {}
 
-  guardar(valor: string): void {
-    const id: number = Number(valor);
-    if (Number.isInteger(id) && id > 0) {
-      this.usuarioActivo.establecer(id);
-    }
-  }
-
-  limpiar(): void {
+  // Cierra la sesión y vuelve al login
+  salir(): void {
     this.usuarioActivo.limpiar();
+    this.router.navigate(['/login']);
   }
 }

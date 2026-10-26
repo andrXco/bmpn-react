@@ -39,6 +39,10 @@
           <td>{{ pool.canalExterno ?? '—' }}</td>
           <td>{{ pool.cajaNegra ? 'Sí' : 'No' }}</td>
           <td class="text-end">
+            @if (pool.tipoParticipante !== tipoParticipante.SISTEMA_EXTERNO) {
+              <a class="btn btn-sm btn-outline-primary me-1"
+                [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'lanes']">Lanes</a>
+            }
             <a class="btn btn-sm btn-outline-secondary me-1"
               [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'editar']">Editar</a>
             <button type="button" class="btn btn-sm btn-outline-danger"
