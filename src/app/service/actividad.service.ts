@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { API_URL } from '../config/api.config';
 import { ActividadResponse, CrearActividadRequest, EditarActividadRequest } from '../model/actividad';
+import { AdvertenciasResponse } from '../model/advertencias';
 import { manejarError } from '../util/errores';
 import { UsuarioActivoService } from './usuario-activo.service';
 
@@ -37,9 +38,9 @@ export class ActividadService {
   }
 
   // DELETE /api/procesos/{procesoId}/actividades/{id}?usuarioId=
-  eliminar(procesoId: number, id: number): Observable<void> {
+  eliminar(procesoId: number, id: number): Observable<AdvertenciasResponse> {
     return this.http
-      .delete<void>(`${this.urlBase(procesoId)}/${id}`, { params: this.usuarioActivo.crearParametros() })
+      .delete<AdvertenciasResponse>(`${this.urlBase(procesoId)}/${id}`, { params: this.usuarioActivo.crearParametros() })
       .pipe(catchError(manejarError));
   }
 

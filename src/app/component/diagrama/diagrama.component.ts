@@ -1,16 +1,18 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Observable, forkJoin, of } from 'rxjs';
+import Modeler from 'bpmn-js/lib/Modeler';
+import { is } from 'bpmn-js/lib/util/ModelUtil';
+import { Observable, firstValueFrom, forkJoin, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
-import { ActividadResponse } from '../../model/actividad';
-import { ArcoResponse } from '../../model/arco';
-import { FilaDiagrama, LineaDiagrama, NodoDiagrama, PoolDiagrama } from '../../model/diagrama';
+import { ActividadResponse, TipoActividad } from '../../model/actividad';
+import { AdvertenciasResponse } from '../../model/advertencias';
+import { ArcoRequest, ArcoResponse } from '../../model/arco';
+import { DatosDiagrama, NodoDiagrama, TipoNodo } from '../../model/diagrama';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
-import { DisparadorEvento, EventoResponse } from '../../model/evento';
-import { GatewayResponse } from '../../model/gateway';
+import { DisparadorEvento, EventoResponse, TipoEvento } from '../../model/evento';
+import { GatewayResponse, TipoGateway } from '../../model/gateway';
 import { LaneResponse } from '../../model/lane';
-import { MensajeResponse } from '../../model/mensaje';
 import { PoolResponse } from '../../model/pool';
 import { ProcesoResponse } from '../../model/proceso';
 import { ActividadService } from '../../service/actividad.service';
@@ -21,41 +23,38 @@ import { LaneService } from '../../service/lane.service';
 import { MensajeService } from '../../service/mensaje.service';
 import { PoolService } from '../../service/pool.service';
 import { ProcesoService } from '../../service/proceso.service';
+import {
+  MARGEN_X, generarXml, idActividad, idArco, idEvento, idGateway, idMensaje, numeroDeId
+} from '../../util/bpmn-xml';
 import { DetalleElementoComponent } from '../detalle-elemento/detalle-elemento.component';
-import { ElementoDiagramaComponent } from '../elemento-diagrama/elemento-diagrama.component';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
 
-// Medidas en pixeles para ubicar los elementos
-const ANCHO_TITULO = 120;
-const ANCHO_NODO = 100;
-const ALTO_NODO = 50;
-const ALTO_FILA = 90;
-const ALTO_CABECERA = 28;
-const SEPARACION_POOLS = 24;
-// La posicion X del backend se separa un poco para que las flechas no queden tan cortas
-const ESCALA_X = 1.5;
-// Mitad del tamaño del circulo y del rombo (deben coincidir con elemento-diagrama.component.css)
-const RADIO_EVENTO = 12;
-const RADIO_GATEWAY = 16;
-
-interface DatosDiagrama {
-  proceso: ProcesoResponse;
-  pools: PoolResponse[];
-  lanes: LaneResponse[][];
-  actividades: ActividadResponse[];
-  gateways: GatewayResponse[];
-  eventos: EventoResponse[];
-  arcos: ArcoResponse[];
-  mensajes: MensajeResponse[];
+// Elemento de bpmn-js (forma o flecha). Solo se usan estos campos.
+interface ElementoBpmn {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  parent?: ElementoBpmn;
+  source?: ElementoBpmn;
+  target?: ElementoBpmn;
+  labelTarget?: ElementoBpmn;
+  incoming?: ElementoBpmn[];
+  outgoing?: ElementoBpmn[];
+  businessObject: { name?: string; eventDefinitions?: { $type: string }[] };
 }
 
 @Component({
   selector: 'app-diagrama',
-  imports: [RouterLink, MensajeErrorComponent, ElementoDiagramaComponent, DetalleElementoComponent],
+  imports: [RouterLink, MensajeErrorComponent, DetalleElementoComponent],
   templateUrl: './diagrama.component.html',
   styleUrl: './diagrama.component.css'
 })
-export class DiagramaComponent implements OnInit {
+export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('lienzo', { static: true }) lienzo!: ElementRef<HTMLDivElement>;
+
   private route = inject(ActivatedRoute);
   private procesoService = inject(ProcesoService);
   private poolService = inject(PoolService);
@@ -66,48 +65,47 @@ export class DiagramaComponent implements OnInit {
   private arcoService = inject(ArcoService);
   private mensajeService = inject(MensajeService);
 
-  readonly anchoTitulo = ANCHO_TITULO;
-
   procesoId: number = 0;
   estado = signal<EstadoPantalla>('idle');
   error = signal<ErrorDto | null>(null);
+  advertencias = signal<string[]>([]);
   proceso = signal<ProcesoResponse | null>(null);
 
-  pools = signal<PoolDiagrama[]>([]);
-  nodos = signal<NodoDiagrama[]>([]);
-  lineas = signal<LineaDiagrama[]>([]);
-  ancho = signal<number>(800);
-  alto = signal<number>(200);
-
-  private arcos: ArcoResponse[] = [];
-  private mensajes: MensajeResponse[] = [];
-  private lanes: LaneResponse[] = [];
-  private ubicados: NodoDiagrama[] = [];
-
   seleccionado = signal<NodoDiagrama | null>(null);
+  nombreLane = signal<string>('Sin lane');
+  conexiones = signal<string[]>([]);
 
-  conexionesSeleccionado = computed<string[]>(() => {
-    const nodo: NodoDiagrama | null = this.seleccionado();
-    return nodo === null ? [] : this.describirConexiones(nodo);
-  });
+  private modeler!: Modeler;
+  private primeraCarga: boolean = true;
+  // Mientras bpmn-js cambia el tipo de un elemento, se ignoran los pasos internos que hace
+  private reemplazando: boolean = false;
+  // Las peticiones al backend van una detras de otra, en el mismo orden en que se hicieron en el diagrama
+  private cola: Promise<void> = Promise.resolve();
 
-  nombreLaneSeleccionado = computed<string>(() => {
-    const nodo: NodoDiagrama | null = this.seleccionado();
-    const lane: LaneResponse | undefined = this.lanes.find(l => l.id === nodo?.laneId);
-    return lane ? lane.nombreRol : 'Sin lane';
-  });
+  private pools = new Map<number, PoolResponse>();
+  private actividades = new Map<number, ActividadResponse>();
+  private gateways = new Map<number, GatewayResponse>();
+  private eventos = new Map<number, EventoResponse>();
+  private arcos = new Map<number, ArcoResponse>();
 
   ngOnInit(): void {
     this.procesoId = Number(this.route.snapshot.paramMap.get('id'));
+  }
+
+  ngAfterViewInit(): void {
+    this.modeler = new Modeler({ container: this.lienzo.nativeElement });
+    this.escucharCambios();
     this.cargar();
+  }
+
+  ngOnDestroy(): void {
+    this.modeler?.destroy();
   }
 
   cargar(): void {
     this.estado.set('loading');
-    this.error.set(null);
     this.seleccionado.set(null);
 
-    // Primero los pools, porque las lanes se piden por pool. Lo demas se pide al mismo tiempo.
     this.poolService.listar(this.procesoId).pipe(
       switchMap((pools: PoolResponse[]) => {
         const lanesPorPool: Observable<LaneResponse[][]> = pools.length > 0
@@ -125,11 +123,7 @@ export class DiagramaComponent implements OnInit {
         });
       })
     ).subscribe({
-      next: (datos: DatosDiagrama) => {
-        this.proceso.set(datos.proceso);
-        this.armarDiagrama(datos);
-        this.estado.set('success');
-      },
+      next: (datos: DatosDiagrama) => this.dibujar(datos),
       error: (error: ErrorDto) => {
         this.error.set(error);
         this.estado.set('error');
@@ -137,229 +131,457 @@ export class DiagramaComponent implements OnInit {
     });
   }
 
-  seleccionar(nodo: NodoDiagrama): void {
-    this.seleccionado.set(nodo);
-  }
-
-  private armarDiagrama(datos: DatosDiagrama): void {
-    this.arcos = datos.arcos;
-    this.mensajes = datos.mensajes;
-    this.lanes = datos.lanes.flat();
-
-    const nodos: NodoDiagrama[] = [
-      ...datos.actividades.map(a => this.crearNodo(a.id, 'ACTIVIDAD', a.nombre, a.tipoActividad, a.poolId,
-        a.laneId, a.posicionX, [])),
-      ...datos.gateways.map(g => this.crearNodo(g.id, 'GATEWAY', g.nombre, g.tipoGateway, g.poolId,
-        null, g.posicionX, g.advertencias)),
-      ...datos.eventos.map(e => this.crearNodo(e.id, 'EVENTO', e.nombre, this.subtipoEvento(e), e.poolId,
-        e.laneId, e.posicionX, e.advertencias))
-    ];
-
-    const pools: PoolDiagrama[] = [];
-    let y: number = 0;
-    const ordenados: PoolResponse[] = [...datos.pools].sort((a, b) => a.orden - b.orden);
-
-    ordenados.forEach(pool => {
-      const indice: number = datos.pools.indexOf(pool);
-      const lanesDelPool: LaneResponse[] = [...(datos.lanes[indice] ?? [])].sort((a, b) => a.orden - b.orden);
-      const nodosDelPool: NodoDiagrama[] = nodos.filter(n => n.poolId === pool.id);
-
-      const filas: FilaDiagrama[] = lanesDelPool.map(lane => ({ laneId: lane.id, titulo: lane.nombreRol, y: 0 }));
-      // Los gateways no tienen lane: van en una fila aparte al final del pool
-      const idsLanes: number[] = lanesDelPool.map(lane => lane.id);
-      if (nodosDelPool.some(n => n.laneId === null || !idsLanes.includes(n.laneId))) {
-        filas.push({ laneId: null, titulo: 'Sin lane', y: 0 });
+  private async dibujar(datos: DatosDiagrama): Promise<void> {
+    this.proceso.set(datos.proceso);
+    this.pools = new Map(datos.pools.map(p => [p.id, p]));
+    this.actividades = new Map(datos.actividades.map(a => [a.id, a]));
+    this.gateways = new Map(datos.gateways.map(g => [g.id, g]));
+    this.eventos = new Map(datos.eventos.map(e => [e.id, e]));
+    this.arcos = new Map(datos.arcos.map(a => [a.id, a]));
+    try {
+      await this.modeler.importXML(generarXml(datos));
+      if (this.primeraCarga) {
+        // Se ajusta al espacio disponible y se corre a la derecha para que la paleta no tape las lanes
+        const canvas = this.modeler.get<any>('canvas');
+        canvas.zoom('fit-viewport');
+        canvas.zoom(canvas.zoom() * 0.85);
+        canvas.scroll({ dx: 100, dy: 10 });
+        this.primeraCarga = false;
       }
-
-      filas.forEach((fila, i) => {
-        fila.y = y + ALTO_CABECERA + i * ALTO_FILA;
-        const enFila: NodoDiagrama[] = nodosDelPool
-          .filter(n => fila.laneId === null ? (n.laneId === null || !idsLanes.includes(n.laneId)) : n.laneId === fila.laneId)
-          .sort((a, b) => a.posicionX - b.posicionX);
-        this.ubicarEnFila(enFila, fila.y);
-      });
-
-      const alto: number = ALTO_CABECERA + Math.max(filas.length, 1) * ALTO_FILA;
-      pools.push({ id: pool.id, nombre: pool.nombre, y: y, alto: alto, filas: filas });
-      y += alto + SEPARACION_POOLS;
-    });
-
-    const derecha: number = Math.max(0, ...nodos.map(n => n.x + ANCHO_NODO));
-    this.ancho.set(Math.max(800, derecha + 40));
-    this.alto.set(Math.max(200, y));
-    this.pools.set(pools);
-    this.nodos.set(nodos);
-    this.lineas.set(this.crearLineas(nodos, pools));
-  }
-
-  private crearNodo(id: number, tipo: NodoDiagrama['tipo'], nombre: string, subtipo: string, poolId: number,
-                    laneId: number | null, posicionX: number, advertencias: string[]): NodoDiagrama {
-    return { id, tipo, nombre, subtipo, poolId, laneId, posicionX, advertencias, x: 0, y: 0 };
-  }
-
-  private subtipoEvento(evento: EventoResponse): string {
-    if (evento.disparador === DisparadorEvento.NINGUNO) {
-      return evento.tipoEvento;
+      this.estado.set('success');
+    } catch {
+      this.error.set(this.errorLocal('No fue posible dibujar el diagrama.'));
+      this.estado.set('error');
     }
-    return `${evento.tipoEvento} ${evento.disparador}`;
   }
 
-  // La posicion X del backend decide el orden; si dos elementos quedan encima, se corre el segundo
-  private ubicarEnFila(nodos: NodoDiagrama[], yFila: number): void {
-    let minimo: number = ANCHO_TITULO + 20;
-    nodos.forEach(nodo => {
-      nodo.x = Math.max(ANCHO_TITULO + 20 + nodo.posicionX * ESCALA_X, minimo);
-      nodo.y = yFila + (ALTO_FILA - ALTO_NODO) / 2;
-      minimo = nodo.x + ANCHO_NODO + 40;
+  private escucharCambios(): void {
+    const eventos = this.modeler.get<any>('eventBus');
+    eventos.on('commandStack.shape.replace.preExecute', () => this.reemplazando = true);
+    eventos.on('commandStack.shape.replace.postExecuted', (e: any) => {
+      this.reemplazando = false;
+      this.alReemplazar(e.context.oldShape, e.context.newShape);
     });
+    eventos.on('commandStack.shape.create.postExecuted', (e: any) => this.alCrear(e.context.shape));
+    eventos.on('commandStack.connection.create.postExecuted', (e: any) => this.alConectar(e.context.connection));
+    eventos.on('commandStack.connection.reconnect.postExecuted', (e: any) => this.alReconectar(e.context.connection));
+    eventos.on('commandStack.elements.move.postExecuted', (e: any) => this.alMover(e.context.shapes));
+    eventos.on('commandStack.elements.delete.postExecuted', (e: any) => this.alEliminar(e.context.elements));
+    eventos.on('commandStack.element.updateLabel.postExecuted', (e: any) =>
+      this.alRenombrar(e.context.element, e.context.newLabel));
+    eventos.on('selection.changed', (e: any) => this.alSeleccionar(e.newSelection));
   }
 
-  private crearLineas(nodos: NodoDiagrama[], pools: PoolDiagrama[]): LineaDiagrama[] {
-    this.ubicados = nodos;
-    const porId = new Map<number, NodoDiagrama>(nodos.map(n => [n.id, n]));
-    const lineas: LineaDiagrama[] = [];
+  // ---- Lo que pasa en el diagrama y como se guarda en el backend ----
 
-    // Cada punta del rombo (arriba o abajo) la usa solo la salida hacia el destino mas cercano
-    const puntasUsadas = new Set<string>();
-    const ordenados: ArcoResponse[] = [...this.arcos]
-      .sort((a, b) => (porId.get(a.destinoId)?.x ?? 0) - (porId.get(b.destinoId)?.x ?? 0));
-
-    ordenados.forEach(arco => {
-      const origen: NodoDiagrama | undefined = porId.get(arco.origenId);
-      const destino: NodoDiagrama | undefined = porId.get(arco.destinoId);
-      if (origen && destino) {
-        const punta: string = `${origen.id}-${destino.y < origen.y ? 'arriba' : 'abajo'}`;
-        const usarPunta: boolean = !puntasUsadas.has(punta);
-        puntasUsadas.add(punta);
-        lineas.push(this.unirArco(origen, destino, arco.condicion ?? arco.etiqueta, usarPunta));
+  private alCrear(forma: ElementoBpmn): void {
+    if (this.reemplazando || forma.type === 'label') {
+      return;
+    }
+    const tipo: TipoNodo | null = this.tipoDe(forma);
+    this.enCola(async () => {
+      if (tipo === null) {
+        throw this.errorLocal('Ese elemento no se maneja en este editor.');
       }
-    });
+      const poolId: number = this.poolIdDe(forma);
+      const ubicacion = this.ubicacionDe(forma);
+      const nombre: string = forma.businessObject.name ?? '';
 
-    this.mensajes.forEach(mensaje => {
-      const envio: NodoDiagrama | undefined = porId.get(mensaje.eventoEnvioId);
-      if (!envio) {
-        return;
-      }
-      const recepcion: NodoDiagrama | undefined =
-        mensaje.eventoRecepcionId !== null ? porId.get(mensaje.eventoRecepcionId) : undefined;
-      if (recepcion) {
-        lineas.push(this.unirMensaje(envio, recepcion, mensaje.nombre));
+      if (tipo === 'ACTIVIDAD') {
+        if (ubicacion.laneId === null) {
+          throw this.errorLocal('Una actividad debe quedar dentro de una lane.');
+        }
+        const creada: ActividadResponse = await firstValueFrom(this.actividadService.crear(this.procesoId, {
+          nombre: nombre || this.nombreLibre(), tipoActividad: this.tipoActividadDe(forma),
+          posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, laneId: ubicacion.laneId, poolId
+        }));
+        this.actividades.set(creada.id, creada);
+        this.cambiarId(forma, idActividad(creada.id), creada.nombre);
+      } else if (tipo === 'GATEWAY') {
+        const creado: GatewayResponse = await firstValueFrom(this.gatewayService.crear(this.procesoId, {
+          nombre: nombre || 'Gateway', tipoGateway: this.tipoGatewayDe(forma),
+          posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, poolId
+        }));
+        this.gateways.set(creado.id, creado);
+        this.cambiarId(forma, idGateway(creado.id), creado.nombre);
       } else {
-        // Destino de caja negra: la linea llega al borde del pool destino
-        const pool: PoolDiagrama | undefined = pools.find(p => p.id === mensaje.poolDestinoId);
+        const evento = this.eventoDe(forma);
+        const creado: EventoResponse = await firstValueFrom(this.eventoService.crear(this.procesoId, {
+          nombre: nombre || 'Evento', tipoEvento: evento.tipoEvento, disparador: evento.disparador, origenExterno: false,
+          posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, poolId, laneId: ubicacion.laneId
+        }));
+        this.eventos.set(creado.id, creado);
+        this.cambiarId(forma, idEvento(creado.id), creado.nombre);
+      }
+    });
+  }
+
+  private alConectar(flecha: ElementoBpmn): void {
+    if (this.reemplazando) {
+      return;
+    }
+    this.enCola(async () => {
+      const origen: ElementoBpmn = flecha.source as ElementoBpmn;
+      const destino: ElementoBpmn = flecha.target as ElementoBpmn;
+      if (flecha.type === 'bpmn:SequenceFlow') {
+        const creado: ArcoResponse = await firstValueFrom(this.arcoService.crear(this.procesoId, {
+          origenId: this.numeroDe(origen), destinoId: this.numeroDe(destino), etiqueta: null, condicion: null
+        }));
+        this.arcos.set(creado.id, creado);
+        this.cambiarId(flecha, idArco(creado.id));
+      } else if (flecha.type === 'bpmn:MessageFlow') {
+        const eventoEnvioId: number | null = numeroDeId(origen.id, 'Evento');
+        if (eventoEnvioId === null) {
+          throw this.errorLocal('Un mensaje sale de un evento que envía mensajes.');
+        }
+        const creado = await firstValueFrom(this.mensajeService.crear(this.procesoId, {
+          eventoEnvioId,
+          eventoRecepcionId: numeroDeId(destino.id, 'Evento'),
+          poolDestinoId: destino.type === 'bpmn:Participant' ? this.numeroPool(destino) : this.poolIdDe(destino),
+          nombre: flecha.businessObject.name || 'Mensaje',
+          claveCorrelacion: null, politicaSinCorrespondencia: null, politicaFallo: null, campos: []
+        }));
+        this.cambiarId(flecha, idMensaje(creado.id), creado.nombre);
+        this.advertencias.set(creado.advertencias);
+      } else {
+        throw this.errorLocal('Esa conexión no se maneja en este editor.');
+      }
+    });
+  }
+
+  private alReconectar(flecha: ElementoBpmn): void {
+    if (this.reemplazando) {
+      return;
+    }
+    this.enCola(async () => {
+      const id: number | null = numeroDeId(flecha.id, 'Arco');
+      if (id === null) {
+        throw this.errorLocal('Ese mensaje no se puede reconectar; elimínalo y créalo de nuevo.');
+      }
+      await this.guardarArco(id, flecha);
+    });
+  }
+
+  private alMover(formas: ElementoBpmn[]): void {
+    const nodos: ElementoBpmn[] = formas.filter(f => this.tipoDe(f) !== null);
+    if (nodos.length === 0) {
+      return;
+    }
+    this.enCola(async () => {
+      for (const forma of nodos) {
+        const ubicacion = this.ubicacionDe(forma);
+        if (this.poolIdDe(forma) !== this.poolOriginal(forma)) {
+          throw this.errorLocal('Un elemento no se puede pasar a otro pool.');
+        }
+        await this.guardarNodo(forma, ubicacion);
+      }
+    });
+  }
+
+  private alRenombrar(elemento: ElementoBpmn, nombre: string): void {
+    const objetivo: ElementoBpmn = elemento.labelTarget ?? elemento;
+    this.enCola(async () => {
+      if (this.tipoDe(objetivo) !== null) {
+        await this.guardarNodo(objetivo, this.ubicacionDe(objetivo), nombre);
+      } else if (objetivo.type === 'bpmn:SequenceFlow') {
+        const id: number | null = numeroDeId(objetivo.id, 'Arco');
+        if (id !== null) {
+          await this.guardarArco(id, objetivo, nombre);
+        }
+      } else if (objetivo.type === 'bpmn:Participant') {
+        const pool: PoolResponse | undefined = this.pools.get(this.numeroPool(objetivo));
         if (pool) {
-          const x: number = envio.x + ANCHO_NODO / 2;
-          const yBorde: number = pool.y > envio.y ? pool.y : pool.y + pool.alto;
-          const yEnvio: number = pool.y > envio.y ? envio.y + ALTO_NODO : envio.y;
-          lineas.push(this.linea('mensaje', [[x, yEnvio], [x, yBorde]], x + 6, (yEnvio + yBorde) / 2, mensaje.nombre));
+          const editado: PoolResponse = await firstValueFrom(this.poolService.editar(this.procesoId, pool.id, {
+            nombre: nombre, canalExterno: pool.canalExterno, cajaNegra: pool.cajaNegra
+          }));
+          this.pools.set(editado.id, editado);
         }
+      } else {
+        throw this.errorLocal('Ese nombre no se puede cambiar desde el diagrama.');
       }
     });
-
-    return lineas;
   }
 
-  // Distancia del centro al borde de la figura: la actividad ocupa toda la caja, el resto es mas pequeño
-  private radio(nodo: NodoDiagrama): { ancho: number; alto: number } {
-    if (nodo.tipo === 'ACTIVIDAD') {
-      return { ancho: ANCHO_NODO / 2, alto: ALTO_NODO / 2 };
-    }
-    const r: number = nodo.tipo === 'GATEWAY' ? RADIO_GATEWAY : RADIO_EVENTO;
-    return { ancho: r, alto: r };
-  }
-
-  // Arco en angulo recto: sale por la derecha del origen y entra por la izquierda del destino
-  private unirArco(origen: NodoDiagrama, destino: NodoDiagrama, texto: string | null,
-                   usarPunta: boolean): LineaDiagrama {
-    const cxO: number = origen.x + ANCHO_NODO / 2;
-    const cyO: number = origen.y + ALTO_NODO / 2;
-    const cxD: number = destino.x + ANCHO_NODO / 2;
-    const cyD: number = destino.y + ALTO_NODO / 2;
-    const rO = this.radio(origen);
-    const rD = this.radio(destino);
-
-    if (destino.x >= origen.x + ANCHO_NODO) {
-      const x2: number = cxD - rD.ancho;
-
-      // Un gateway hacia otra fila sale por la punta de arriba o de abajo del rombo
-      if (origen.tipo === 'GATEWAY' && cyO !== cyD) {
-        if (usarPunta) {
-          const punta: number = cyD < cyO ? cyO - rO.alto : cyO + rO.alto;
-          return this.linea('arco', [[cxO, punta], [cxO, cyD], [x2, cyD]], cxO + 14, (punta + cyD) / 2, texto);
+  private alEliminar(elementos: ElementoBpmn[]): void {
+    const borrados: Set<string> = new Set(elementos.map(e => e.id));
+    this.enCola(async () => {
+      const avisos: string[] = [];
+      for (const elemento of elementos) {
+        const tipo: TipoNodo | null = this.tipoDe(elemento);
+        let respuesta: AdvertenciasResponse | null = null;
+        if (tipo === 'ACTIVIDAD') {
+          respuesta = await firstValueFrom(this.actividadService.eliminar(this.procesoId, this.numeroDe(elemento)));
+        } else if (tipo === 'GATEWAY') {
+          respuesta = await firstValueFrom(this.gatewayService.eliminar(this.procesoId, this.numeroDe(elemento)));
+        } else if (tipo === 'EVENTO') {
+          respuesta = await firstValueFrom(this.eventoService.eliminar(this.procesoId, this.numeroDe(elemento)));
+        } else if (elemento.type === 'bpmn:SequenceFlow' || elemento.type === 'bpmn:MessageFlow') {
+          // Si se borro uno de sus extremos, el backend ya la elimino junto con el
+          if (borrados.has(elemento.source?.id ?? '') || borrados.has(elemento.target?.id ?? '')) {
+            continue;
+          }
+          const arcoId: number | null = numeroDeId(elemento.id, 'Arco');
+          const mensajeId: number | null = numeroDeId(elemento.id, 'Mensaje');
+          if (arcoId !== null) {
+            respuesta = await firstValueFrom(this.arcoService.eliminar(this.procesoId, arcoId));
+          } else if (mensajeId !== null) {
+            await firstValueFrom(this.mensajeService.eliminar(this.procesoId, mensajeId));
+          }
+        } else if (elemento.type !== 'label') {
+          throw this.errorLocal('Los pools y las lanes se eliminan desde la pantalla de pools.');
         }
-        // La punta ya esta ocupada: sale por la derecha y sube o baja justo antes del destino
-        const x1: number = cxO + rO.ancho;
-        return this.linea('arco', [[x1, cyO], [x2 - 20, cyO], [x2 - 20, cyD], [x2, cyD]], x1 + 16, cyO - 5, texto);
+        avisos.push(...(respuesta?.advertencias ?? []));
       }
+      this.advertencias.set(avisos);
+      this.seleccionado.set(null);
+    });
+  }
 
-      const x1: number = cxO + rO.ancho;
-      if (cyO === cyD) {
-        // Si hay otro elemento en medio, la flecha pasa por encima de el
-        if (this.hayElementoEntre(origen, destino)) {
-          const arriba: number = origen.y - 8;
-          return this.linea('arco', [[x1, cyO], [x1 + 12, cyO], [x1 + 12, arriba], [x2 - 12, arriba], [x2 - 12, cyD], [x2, cyD]],
-            (x1 + x2) / 2, arriba - 4, texto);
-        }
-        const textoX: number = origen.tipo === 'GATEWAY' ? x1 + 16 : (x1 + x2) / 2;
-        return this.linea('arco', [[x1, cyO], [x2, cyD]], textoX, cyO - 5, texto);
+  private alReemplazar(anterior: ElementoBpmn, nueva: ElementoBpmn): void {
+    this.enCola(async () => {
+      if (this.tipoDe(anterior) === null || this.tipoDe(anterior) !== this.tipoDe(nueva)) {
+        throw this.errorLocal('Ese cambio de tipo no se maneja en este editor.');
       }
-      const quiebre: number = (x1 + x2) / 2;
-      return this.linea('arco', [[x1, cyO], [quiebre, cyO], [quiebre, cyD], [x2, cyD]],
-        quiebre + 10, (cyO + cyD) / 2, texto);
+      // El backend conserva el mismo elemento: solo cambia su tipo
+      this.cambiarId(nueva, anterior.id);
+      await this.guardarNodo(nueva, this.ubicacionDe(nueva));
+    });
+  }
+
+  private alSeleccionar(seleccion: ElementoBpmn[]): void {
+    const forma: ElementoBpmn | undefined = seleccion.length === 1 ? seleccion[0] : undefined;
+    const tipo: TipoNodo | null = forma ? this.tipoDe(forma) : null;
+    if (!forma || tipo === null || numeroDeId(forma.id, this.prefijo(tipo)) === null) {
+      this.seleccionado.set(null);
+      return;
     }
+    const id: number = this.numeroDe(forma);
+    const nombreDe = (e?: ElementoBpmn): string => e?.businessObject.name || 'elemento sin nombre';
+    this.conexiones.set([
+      ...(forma.outgoing ?? []).map(f => f.type === 'bpmn:MessageFlow'
+        ? `Envía el mensaje "${nombreDe(f)}"` : `Va a ${nombreDe(f.target)}`),
+      ...(forma.incoming ?? []).map(f => f.type === 'bpmn:MessageFlow'
+        ? `Recibe el mensaje "${nombreDe(f)}"` : `Viene de ${nombreDe(f.source)}`)
+    ]);
+    this.nombreLane.set(this.laneEn(forma)?.businessObject.name ?? 'Sin lane');
+    this.seleccionado.set({
+      id, tipo, nombre: nombreDe(forma), subtipo: this.subtipoDe(forma),
+      posicionX: this.ubicacionDe(forma).posicionX,
+      advertencias: tipo === 'GATEWAY' ? this.gateways.get(id)?.advertencias ?? []
+        : tipo === 'EVENTO' ? this.eventos.get(id)?.advertencias ?? [] : []
+    });
+  }
 
-    // Uno encima del otro: la flecha baja o sube derecho
-    if (Math.abs(destino.x - origen.x) < ANCHO_NODO) {
-      const baja: boolean = cyD > cyO;
-      const inicio: number = baja ? cyO + rO.alto : cyO - rO.alto;
-      const fin: number = baja ? cyD - rD.alto : cyD + rD.alto;
-      const medio: number = (inicio + fin) / 2;
-      return this.linea('arco', [[cxO, inicio], [cxO, medio], [cxD, medio], [cxD, fin]], cxO + 10, medio - 4, texto);
+  // ---- Guardar ----
+
+  private async guardarNodo(forma: ElementoBpmn, ubicacion: { posicionX: number; posicionY: number; laneId: number | null },
+                            nombreNuevo?: string): Promise<void> {
+    const id: number = this.numeroDe(forma);
+    const tipo: TipoNodo | null = this.tipoDe(forma);
+    if (tipo === 'ACTIVIDAD') {
+      const actual: ActividadResponse = this.actividades.get(id) as ActividadResponse;
+      if (ubicacion.laneId === null) {
+        throw this.errorLocal('Una actividad debe quedar dentro de una lane.');
+      }
+      const editada: ActividadResponse = await firstValueFrom(this.actividadService.editar(this.procesoId, id, {
+        nombre: nombreNuevo ?? actual.nombre, tipoActividad: this.tipoActividadDe(forma),
+        posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, laneId: ubicacion.laneId
+      }));
+      this.actividades.set(id, editada);
+    } else if (tipo === 'GATEWAY') {
+      const actual: GatewayResponse = this.gateways.get(id) as GatewayResponse;
+      const editado: GatewayResponse = await firstValueFrom(this.gatewayService.editar(this.procesoId, id, {
+        nombre: nombreNuevo ?? actual.nombre, tipoGateway: this.tipoGatewayDe(forma),
+        posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY
+      }));
+      this.gateways.set(id, editado);
+      this.advertencias.set(editado.advertencias);
+    } else if (tipo === 'EVENTO') {
+      const actual: EventoResponse = this.eventos.get(id) as EventoResponse;
+      const evento = this.eventoDe(forma);
+      const editado: EventoResponse = await firstValueFrom(this.eventoService.editar(this.procesoId, id, {
+        nombre: nombreNuevo ?? actual.nombre, tipoEvento: evento.tipoEvento, disparador: evento.disparador,
+        origenExterno: actual.origenExterno, posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY,
+        laneId: ubicacion.laneId
+      }));
+      this.eventos.set(id, editado);
+      this.advertencias.set(editado.advertencias);
     }
-
-    // El destino esta atras: la flecha pasa por debajo y regresa
-    const abajo: number = Math.max(origen.y, destino.y) + ALTO_NODO + 15;
-    return this.linea('arco', [[cxO, cyO + rO.alto], [cxO, abajo], [cxD, abajo], [cxD, cyD + rD.alto]],
-      (cxO + cxD) / 2, abajo - 4, texto);
   }
 
-  private hayElementoEntre(origen: NodoDiagrama, destino: NodoDiagrama): boolean {
-    return this.ubicados.some(n => n.y === origen.y && n.x > origen.x && n.x < destino.x);
+  // En un arco que sale de un gateway exclusivo o inclusivo, el texto de la flecha es la condicion
+  private async guardarArco(id: number, flecha: ElementoBpmn, texto?: string): Promise<void> {
+    const origen: ElementoBpmn = flecha.source as ElementoBpmn;
+    const valor: string | null = (texto ?? flecha.businessObject.name ?? '').trim() || null;
+    const conCondicion: boolean = is(origen, 'bpmn:ExclusiveGateway') || is(origen, 'bpmn:InclusiveGateway');
+    const request: ArcoRequest = {
+      origenId: this.numeroDe(origen), destinoId: this.numeroDe(flecha.target as ElementoBpmn),
+      etiqueta: valor, condicion: conCondicion ? valor : null
+    };
+    const editado: ArcoResponse = await firstValueFrom(this.arcoService.editar(this.procesoId, id, request));
+    this.arcos.set(id, editado);
   }
 
-  // Mensaje entre pools: baja (o sube) del evento que envia al que recibe
-  private unirMensaje(envio: NodoDiagrama, recepcion: NodoDiagrama, texto: string): LineaDiagrama {
-    const x1: number = envio.x + ANCHO_NODO / 2;
-    const x2: number = recepcion.x + ANCHO_NODO / 2;
-    const baja: boolean = recepcion.y > envio.y;
-    const inicio: number = envio.y + ALTO_NODO / 2 + (baja ? RADIO_EVENTO : -RADIO_EVENTO);
-    const fin: number = recepcion.y + ALTO_NODO / 2 + (baja ? -RADIO_EVENTO : RADIO_EVENTO);
-    const medio: number = (inicio + fin) / 2;
-    return this.linea('mensaje', [[x1, inicio], [x1, medio], [x2, medio], [x2, fin]], (x1 + x2) / 2, medio - 4, texto);
+  private enCola(tarea: () => Promise<void>): void {
+    this.cola = this.cola
+      .then(() => {
+        this.error.set(null);
+        return tarea();
+      })
+      .catch((error: ErrorDto) => {
+        // El diagrama vuelve a quedar como esta guardado en el backend
+        this.error.set(error?.mensaje ? error : this.errorLocal('No fue posible guardar el cambio.'));
+        this.cargar();
+      });
   }
 
-  private linea(tipo: LineaDiagrama['tipo'], puntos: number[][], textoX: number, textoY: number,
-                texto: string | null): LineaDiagrama {
-    return { tipo, puntos: puntos.map(p => p.join(',')).join(' '), textoX, textoY, texto };
+  // ---- Utilidades ----
+
+  private tipoDe(elemento: ElementoBpmn): TipoNodo | null {
+    if (elemento.type === 'label') {
+      return null;
+    }
+    if (is(elemento, 'bpmn:Task')) {
+      return 'ACTIVIDAD';
+    }
+    if (is(elemento, 'bpmn:ExclusiveGateway') || is(elemento, 'bpmn:ParallelGateway') || is(elemento, 'bpmn:InclusiveGateway')) {
+      return 'GATEWAY';
+    }
+    if (is(elemento, 'bpmn:StartEvent') || is(elemento, 'bpmn:EndEvent')
+      || is(elemento, 'bpmn:IntermediateThrowEvent') || is(elemento, 'bpmn:IntermediateCatchEvent')) {
+      return 'EVENTO';
+    }
+    return null;
   }
 
-  private describirConexiones(nodo: NodoDiagrama): string[] {
-    const nombre = (id: number): string => this.nodos().find(n => n.id === id)?.nombre ?? `elemento ${id}`;
-    const conexiones: string[] = [];
+  private prefijo(tipo: TipoNodo): string {
+    return tipo === 'ACTIVIDAD' ? 'Actividad' : tipo === 'GATEWAY' ? 'Gateway' : 'Evento';
+  }
 
-    this.arcos.filter(a => a.origenId === nodo.id).forEach(a => {
-      const condicion: string = a.condicion ? ` si "${a.condicion}"` : '';
-      conexiones.push(`Va a ${nombre(a.destinoId)}${condicion}`);
-    });
-    this.arcos.filter(a => a.destinoId === nodo.id).forEach(a => {
-      conexiones.push(`Viene de ${nombre(a.origenId)}`);
-    });
-    this.mensajes.filter(m => m.eventoEnvioId === nodo.id).forEach(m => {
-      conexiones.push(`Envía el mensaje "${m.nombre}"`);
-    });
-    this.mensajes.filter(m => m.eventoRecepcionId === nodo.id).forEach(m => {
-      conexiones.push(`Recibe el mensaje "${m.nombre}"`);
-    });
-    return conexiones;
+  private numeroDe(elemento: ElementoBpmn): number {
+    const tipo: TipoNodo | null = this.tipoDe(elemento);
+    const numero: number | null = tipo ? numeroDeId(elemento.id, this.prefijo(tipo)) : null;
+    if (numero === null) {
+      throw this.errorLocal('El elemento todavía no está guardado.');
+    }
+    return numero;
+  }
+
+  private tipoActividadDe(forma: ElementoBpmn): TipoActividad {
+    if (is(forma, 'bpmn:UserTask')) {
+      return TipoActividad.USUARIO;
+    }
+    if (is(forma, 'bpmn:ManualTask')) {
+      return TipoActividad.MANUAL;
+    }
+    return is(forma, 'bpmn:ServiceTask') ? TipoActividad.SERVICIO : TipoActividad.TAREA;
+  }
+
+  private tipoGatewayDe(forma: ElementoBpmn): TipoGateway {
+    if (is(forma, 'bpmn:ParallelGateway')) {
+      return TipoGateway.PARALELO;
+    }
+    return is(forma, 'bpmn:InclusiveGateway') ? TipoGateway.INCLUSIVO : TipoGateway.EXCLUSIVO;
+  }
+
+  private eventoDe(forma: ElementoBpmn): { tipoEvento: TipoEvento; disparador: DisparadorEvento } {
+    const conMensaje: boolean = (forma.businessObject.eventDefinitions ?? [])
+      .some(d => d.$type === 'bpmn:MessageEventDefinition');
+    if (is(forma, 'bpmn:StartEvent')) {
+      return { tipoEvento: TipoEvento.INICIO, disparador: conMensaje ? DisparadorEvento.MENSAJE_RECEPCION : DisparadorEvento.NINGUNO };
+    }
+    if (is(forma, 'bpmn:EndEvent')) {
+      return { tipoEvento: TipoEvento.FIN, disparador: conMensaje ? DisparadorEvento.MENSAJE_ENVIO : DisparadorEvento.NINGUNO };
+    }
+    if (is(forma, 'bpmn:IntermediateCatchEvent')) {
+      return { tipoEvento: TipoEvento.INTERMEDIO, disparador: conMensaje ? DisparadorEvento.MENSAJE_RECEPCION : DisparadorEvento.NINGUNO };
+    }
+    return { tipoEvento: TipoEvento.INTERMEDIO, disparador: conMensaje ? DisparadorEvento.MENSAJE_ENVIO : DisparadorEvento.NINGUNO };
+  }
+
+  private subtipoDe(forma: ElementoBpmn): string {
+    const tipo: TipoNodo | null = this.tipoDe(forma);
+    if (tipo === 'ACTIVIDAD') {
+      return this.tipoActividadDe(forma);
+    }
+    if (tipo === 'GATEWAY') {
+      return this.tipoGatewayDe(forma);
+    }
+    const evento = this.eventoDe(forma);
+    return evento.disparador === DisparadorEvento.NINGUNO ? evento.tipoEvento : `${evento.tipoEvento} ${evento.disparador}`;
+  }
+
+  private poolDe(elemento: ElementoBpmn): ElementoBpmn | undefined {
+    let actual: ElementoBpmn | undefined = elemento.parent;
+    while (actual && actual.type !== 'bpmn:Participant') {
+      actual = actual.parent;
+    }
+    return actual;
+  }
+
+  private numeroPool(pool: ElementoBpmn): number {
+    const numero: number | null = numeroDeId(pool.id, 'Pool');
+    if (numero === null) {
+      throw this.errorLocal('Los pools se crean desde la pantalla de pools.');
+    }
+    return numero;
+  }
+
+  private poolIdDe(elemento: ElementoBpmn): number {
+    const pool: ElementoBpmn | undefined = this.poolDe(elemento);
+    if (!pool) {
+      throw this.errorLocal('El elemento debe quedar dentro de un pool.');
+    }
+    return this.numeroPool(pool);
+  }
+
+  // Pool en el que estaba el elemento segun el backend
+  private poolOriginal(forma: ElementoBpmn): number | undefined {
+    const id: number = this.numeroDe(forma);
+    const tipo: TipoNodo | null = this.tipoDe(forma);
+    return tipo === 'ACTIVIDAD' ? this.actividades.get(id)?.poolId
+      : tipo === 'GATEWAY' ? this.gateways.get(id)?.poolId : this.eventos.get(id)?.poolId;
+  }
+
+  private laneEn(forma: ElementoBpmn): ElementoBpmn | undefined {
+    const pool: ElementoBpmn | undefined = this.poolDe(forma);
+    const centroY: number = forma.y + forma.height / 2;
+    return this.modeler.get<any>('elementRegistry')
+      .filter((e: ElementoBpmn) => e.type === 'bpmn:Lane' && this.poolDe(e) === pool
+        && centroY >= e.y && centroY <= e.y + e.height)[0];
+  }
+
+  // Centro del elemento medido desde la esquina del pool, igual que en generarXml
+  private ubicacionDe(forma: ElementoBpmn): { posicionX: number; posicionY: number; laneId: number | null } {
+    const pool: ElementoBpmn | undefined = this.poolDe(forma);
+    const redondear = (valor: number): number => Math.round(valor * 100) / 100;
+    const lane: ElementoBpmn | undefined = this.laneEn(forma);
+    return {
+      posicionX: redondear(forma.x + forma.width / 2 - (pool?.x ?? 0) - MARGEN_X),
+      posicionY: redondear(forma.y + forma.height / 2 - (pool?.y ?? 0)),
+      laneId: lane ? numeroDeId(lane.id, 'Lane') : null
+    };
+  }
+
+  // El nombre de una actividad no se puede repetir dentro del proceso
+  private nombreLibre(): string {
+    const usados: string[] = [...this.actividades.values()].map(a => a.nombre.toLowerCase());
+    let numero: number = 1;
+    while (usados.includes(`nueva actividad ${numero}`)) {
+      numero++;
+    }
+    return `Nueva actividad ${numero}`;
+  }
+
+  private cambiarId(elemento: ElementoBpmn, id: string, nombre?: string): void {
+    const cambios: { id: string; name?: string } = { id };
+    if (nombre && !elemento.businessObject.name) {
+      cambios.name = nombre;
+    }
+    this.modeler.get<any>('modeling').updateProperties(elemento, cambios);
+  }
+
+  private errorLocal(mensaje: string): ErrorDto {
+    return { codigo: 'DIAGRAMA', mensaje, fecha: new Date().toISOString(), detalles: [] };
   }
 }

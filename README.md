@@ -23,17 +23,18 @@ Usuarios de ejemplo (datos iniciales del backend): `admin@bitweb.co`,
 
 ## Docker
 
-El `Dockerfile` compila la aplicacion con Node y la sirve con nginx. En `nginx.conf`,
-nginx devuelve `index.html` para las rutas de Angular y reenvia `/api` al backend
-(`http://app:8080`, el servicio del backend en Docker Compose).
+El `Dockerfile` compila la aplicacion con Node y la sirve con nginx. `nginx.conf`
+devuelve `index.html` para las rutas de Angular. La version compilada llama a la
+API en `http://localhost:8080/api` (el backend tiene CORS para `http://localhost:4200`).
 
-Para levantar todo junto (base de datos, API y frontend) se usa el `compose.yaml`
-del repositorio `bmpn`, con las dos carpetas una al lado de la otra:
+Con el backend corriendo (en su propio Docker, repositorio `bmpn`):
 
 ```powershell
-cd ../bmpn
-docker compose up -d --build --wait
+docker build -t bmpn-front .
+docker run -d --name bmpn-front -p 4200:80 bmpn-front
 ```
+
+Abre `http://localhost:4200`.
 
 ## Estructura
 
