@@ -1,0 +1,57 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Roles y permisos @if (pool(); as p) { del pool {{ p.nombre }} }</h2>
+  <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId, 'pools']">Volver a los pools</a>
+</div>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+@if (mensaje()) {
+  <div class="alert alert-success">{{ mensaje() }}</div>
+}
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success') {
+  <h4>Roles de proceso disponibles</h4>
+  <p class="text-muted">Solo estos roles se pueden usar en las lanes del pool.</p>
+
+  @if (rolesDisponibles().length === 0) {
+    <p>El pool no tiene roles asociados.</p>
+  } @else {
+    <table class="table table-sm align-middle" style="max-width: 500px">
+      <tbody>
+        @for (rol of rolesDisponibles(); track rol.rolProcesoId) {
+          <tr>
+            <td>{{ rol.nombreRol }}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="quitarRol(rol)">Quitar</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <form class="d-flex gap-2 align-items-start mb-4" [formGroup]="form" (ngSubmit)="agregarRol()">
+    <div>
+      <select class="form-select" formControlName="rolProcesoId" aria-label="Rol de proceso">
+        <option [ngValue]="null">Selecciona un rol...</option>
+        @for (rol of rolesParaAgregar(); track rol.id) {
+          <option [ngValue]="rol.id">{{ rol.nombre }}</option>
+        }
+      </select>
+      @if (campoInvalido(form.controls.rolProcesoId)) {
+        <div class="text-danger small">Selecciona un rol.</div>
+      }
+    </div>
+    <button type="submit" class="btn btn-primary">Agregar</button>
+  </form>
+
+  <h4>Permisos por rol de acceso</h4>
+  <p class="text-muted">Qué puede hacer cada tipo de usuario con este pool y sus lanes. Solo el administrador los cambia.</p>
+
+  @for (permiso of permisos(); track permiso.rolAcceso) {
+    <app-permiso-rol [permiso]="permiso" [guardando]="guardando()" (guardar)="guardarPermiso($event)"></app-permiso-rol>
+  }
+}

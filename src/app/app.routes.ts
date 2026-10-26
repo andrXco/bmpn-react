@@ -6,6 +6,7 @@ import { LoginComponent } from './component/login/login.component';
 import { NoEncontradoComponent } from './component/no-encontrado/no-encontrado.component';
 import { PoolFormComponent } from './component/pool-form/pool-form.component';
 import { PoolListaComponent } from './component/pool-lista/pool-lista.component';
+import { PoolPermisosComponent } from './component/pool-permisos/pool-permisos.component';
 import { ProcesoCompartidoListaComponent } from './component/proceso-compartido-lista/proceso-compartido-lista.component';
 import { ProcesoDetalleComponent } from './component/proceso-detalle/proceso-detalle.component';
 import { DiagramaComponent } from './component/diagrama/diagrama.component';
@@ -41,6 +42,7 @@ export const routes: Routes = [
       { path: 'procesos/:procesoId/pools', component: PoolListaComponent },
       { path: 'procesos/:procesoId/pools/nuevo', component: PoolFormComponent },
       { path: 'procesos/:procesoId/pools/:poolId/editar', component: PoolFormComponent },
+      { path: 'procesos/:procesoId/pools/:poolId/permisos', component: PoolPermisosComponent },
 
       { path: 'procesos/:procesoId/pools/:poolId/lanes', component: LaneListaComponent },
       { path: 'procesos/:procesoId/pools/:poolId/lanes/nuevo', component: LaneFormComponent },

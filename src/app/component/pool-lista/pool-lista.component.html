@@ -43,6 +43,10 @@
               <a class="btn btn-sm btn-outline-primary me-1"
                 [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'lanes']">Lanes</a>
             }
+            @if (pool.empresaParticipanteId !== null) {
+              <a class="btn btn-sm btn-outline-primary me-1"
+                [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'permisos']">Roles y permisos</a>
+            }
             <a class="btn btn-sm btn-outline-secondary me-1"
               [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'editar']">Editar</a>
             <button type="button" class="btn btn-sm btn-outline-danger"

@@ -1,0 +1,19 @@
+<form class="d-flex align-items-center gap-3 border rounded p-2 mb-2" [formGroup]="form" (ngSubmit)="enviar()">
+  <strong style="width: 140px">{{ permiso().rolAcceso }}</strong>
+
+  <label class="form-check mb-0">
+    <input type="checkbox" class="form-check-input" formControlName="puedeCrear"> Crear
+  </label>
+  <label class="form-check mb-0">
+    <input type="checkbox" class="form-check-input" formControlName="puedeEditar"> Editar
+  </label>
+  <label class="form-check mb-0">
+    <input type="checkbox" class="form-check-input" formControlName="puedeEliminar"> Eliminar
+  </label>
+
+  @if (esSoloLectura()) {
+    <span class="text-muted small">Solo puede ver el pool</span>
+  } @else {
+    <button type="submit" class="btn btn-sm btn-primary ms-auto" [disabled]="guardando()">Guardar</button>
+  }
+</form>
