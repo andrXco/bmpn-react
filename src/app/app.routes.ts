@@ -8,6 +8,7 @@ import { PoolFormComponent } from './component/pool-form/pool-form.component';
 import { PoolListaComponent } from './component/pool-lista/pool-lista.component';
 import { ProcesoCompartidoListaComponent } from './component/proceso-compartido-lista/proceso-compartido-lista.component';
 import { ProcesoDetalleComponent } from './component/proceso-detalle/proceso-detalle.component';
+import { DiagramaComponent } from './component/diagrama/diagrama.component';
 import { ProcesoFormComponent } from './component/proceso-form/proceso-form.component';
 import { ProcesoListaComponent } from './component/proceso-lista/proceso-lista.component';
 import { RolProcesoFormComponent } from './component/rol-proceso-form/rol-proceso-form.component';
@@ -33,6 +34,7 @@ export const routes: Routes = [
       { path: 'procesos/nuevo', component: ProcesoFormComponent },
       { path: 'procesos/:id', component: ProcesoDetalleComponent },
       { path: 'procesos/:id/editar', component: ProcesoFormComponent },
+      { path: 'procesos/:id/diagrama', component: DiagramaComponent },
 
       { path: 'procesos/:procesoId/compartidos', component: ProcesoCompartidoListaComponent },
 
