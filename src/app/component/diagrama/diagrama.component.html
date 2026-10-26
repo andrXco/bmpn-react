@@ -21,7 +21,7 @@
 
         @for (pool of pools(); track pool.id) {
           <div class="pool" [style.top.px]="pool.y" [style.height.px]="pool.alto">
-            <div class="pool-titulo">{{ pool.nombre }}</div>
+            <div class="pool-titulo"><span>{{ pool.nombre }}</span></div>
             @for (fila of pool.filas; track fila.titulo) {
               <div class="fila" [style.top.px]="fila.y - pool.y">
                 <span class="fila-titulo" [style.width.px]="anchoTitulo">{{ fila.titulo }}</span>

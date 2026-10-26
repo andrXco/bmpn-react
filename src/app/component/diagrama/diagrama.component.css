@@ -33,7 +33,16 @@
   border-bottom: 1px solid #ccc;
 }
 
+/* Los titulos se quedan a la izquierda cuando el diagrama se desplaza */
+.pool-titulo span {
+  position: sticky;
+  left: 8px;
+}
+
 .fila-titulo {
+  position: sticky;
+  left: 0;
+  z-index: 2;
   display: block;
   height: 100%;
   padding: 6px;
