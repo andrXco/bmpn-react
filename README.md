@@ -1,59 +1,48 @@
-# BmpnAngular
+# BPMN frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.2.
+Aplicacion Angular del editor y visor de procesos BPMN. Consume la API REST del
+repositorio [bmpn](https://github.com/andrXco/bmpn).
 
-## Development server
+## Requisitos
 
-To start a local development server, run:
+- Node.js 22.22 o superior (o 24) con npm.
+- El backend corriendo en `http://localhost:8080`.
 
-```bash
-ng serve
+## Desarrollo
+
+```powershell
+npm install
+npm start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Abre `http://localhost:4200`. `proxy.conf.json` reenvia las peticiones a `/api`
+hacia el backend en el puerto 8080, por eso no hace falta CORS.
 
-## Code scaffolding
+Usuarios de ejemplo (datos iniciales del backend): `admin@bitweb.co`,
+`editor@bitweb.co` y `lector@bitweb.co`, todos con la clave `BitWeb2026`.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Docker
 
-```bash
-ng generate component component-name
+El `Dockerfile` compila la aplicacion con Node y la sirve con nginx. En `nginx.conf`,
+nginx devuelve `index.html` para las rutas de Angular y reenvia `/api` al backend
+(`http://app:8080`, el servicio del backend en Docker Compose).
+
+Para levantar todo junto (base de datos, API y frontend) se usa el `compose.yaml`
+del repositorio `bmpn`, con las dos carpetas una al lado de la otra:
+
+```powershell
+cd ../bmpn
+docker compose up -d --build --wait
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Estructura
 
-```bash
-ng generate --help
+```text
+src/app/
+├── model/        interfaces que reflejan los DTO del backend
+├── service/      llamadas a la API con HttpClient
+├── component/    pantallas y componentes
+├── interceptor/  manejo global de errores HTTP
+├── guard/        rutas que necesitan sesion
+└── util/         funciones compartidas
 ```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
