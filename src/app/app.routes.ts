@@ -9,7 +9,6 @@ import { PoolListaComponent } from './component/pool-lista/pool-lista.component'
 import { PoolPermisosComponent } from './component/pool-permisos/pool-permisos.component';
 import { ProcesoCompartidoListaComponent } from './component/proceso-compartido-lista/proceso-compartido-lista.component';
 import { ProcesoDetalleComponent } from './component/proceso-detalle/proceso-detalle.component';
-import { DiagramaComponent } from './component/diagrama/diagrama.component';
 import { ProcesoFormComponent } from './component/proceso-form/proceso-form.component';
 import { ProcesoListaComponent } from './component/proceso-lista/proceso-lista.component';
 import { RolProcesoFormComponent } from './component/rol-proceso-form/rol-proceso-form.component';
@@ -35,7 +34,11 @@ export const routes: Routes = [
       { path: 'procesos/nuevo', component: ProcesoFormComponent },
       { path: 'procesos/:id', component: ProcesoDetalleComponent },
       { path: 'procesos/:id/editar', component: ProcesoFormComponent },
-      { path: 'procesos/:id/diagrama', component: DiagramaComponent },
+      // El diagrama usa bpmn-js, que es pesado: se descarga solo cuando se abre esta pantalla
+      {
+        path: 'procesos/:id/diagrama',
+        loadComponent: () => import('./component/diagrama/diagrama.component').then(m => m.DiagramaComponent)
+      },
 
       { path: 'procesos/:procesoId/compartidos', component: ProcesoCompartidoListaComponent },
 
