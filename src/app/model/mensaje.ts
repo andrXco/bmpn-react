@@ -21,7 +21,7 @@ export interface CrearMensajeRequest {
   eventoRecepcionId: number | null;
   poolDestinoId: number | null;
   nombre: string;
-  claveCorrelacion: string | null;
+  claveCorrelacion: string;         
   politicaSinCorrespondencia: PoliticaSinCorrespondencia | null;
   politicaFallo: PoliticaFallo | null;
   campos: CampoMensaje[];
@@ -44,3 +44,6 @@ export interface MensajeResponse {
   campos: CampoMensaje[];
   advertencias: string[];
 }
+
+// Lo que se llena en el formulario al dibujar un mensaje; los eventos y el pool salen del diagrama
+export type DatosMensaje = Omit<CrearMensajeRequest, 'eventoEnvioId' | 'eventoRecepcionId' | 'poolDestinoId'>;
