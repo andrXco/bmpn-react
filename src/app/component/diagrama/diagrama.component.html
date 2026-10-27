@@ -18,10 +18,16 @@
   </div>
 }
 
-<p class="text-muted small mb-2">
-  Arrastra tareas, gateways y eventos desde la paleta de la izquierda. Doble clic para cambiar el nombre.
-  Para unir dos elementos, selecciona uno y usa la flecha de su menú.
-</p>
+@if (soloLectura) {
+  <p class="text-muted small mb-2">
+    Tu rol es de solo lectura: puedes ver el diagrama y el detalle de cada elemento, pero no modificarlo.
+  </p>
+} @else {
+  <p class="text-muted small mb-2">
+    Arrastra tareas, gateways y eventos desde la paleta de la izquierda. Doble clic para cambiar el nombre.
+    Para unir dos elementos, selecciona uno y usa la flecha de su menú.
+  </p>
+}
 
 @if (estado() === 'loading') {
   <p>Cargando...</p>

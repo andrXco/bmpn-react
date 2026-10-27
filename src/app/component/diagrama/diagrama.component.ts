@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import Modeler from 'bpmn-js/lib/Modeler';
+import NavigatedViewer from 'bpmn-js/lib/NavigatedViewer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { Observable, firstValueFrom, forkJoin, of } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
@@ -15,6 +16,7 @@ import { GatewayResponse, TipoGateway } from '../../model/gateway';
 import { LaneResponse } from '../../model/lane';
 import { PoolResponse } from '../../model/pool';
 import { ProcesoResponse } from '../../model/proceso';
+import { RolAcceso } from '../../model/rol-acceso';
 import { ActividadService } from '../../service/actividad.service';
 import { ArcoService } from '../../service/arco.service';
 import { EventoService } from '../../service/evento.service';
@@ -23,6 +25,7 @@ import { LaneService } from '../../service/lane.service';
 import { MensajeService } from '../../service/mensaje.service';
 import { PoolService } from '../../service/pool.service';
 import { ProcesoService } from '../../service/proceso.service';
+import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import {
   MARGEN_X, generarXml, idActividad, idArco, idEvento, idGateway, idMensaje, numeroDeId
 } from '../../util/bpmn-xml';
@@ -64,8 +67,11 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   private eventoService = inject(EventoService);
   private arcoService = inject(ArcoService);
   private mensajeService = inject(MensajeService);
+  private usuarioActivo = inject(UsuarioActivoService);
 
   procesoId: number = 0;
+  // Un usuario de solo lectura ve el diagrama pero no lo puede modificar (HU-24)
+  soloLectura: boolean = false;
   estado = signal<EstadoPantalla>('idle');
   error = signal<ErrorDto | null>(null);
   advertencias = signal<string[]>([]);
@@ -75,7 +81,8 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   nombreLane = signal<string>('Sin lane');
   conexiones = signal<string[]>([]);
 
-  private modeler!: Modeler;
+  // Modeler para editar; NavigatedViewer solo deja mover la vista y hacer zoom
+  private modeler!: Modeler | NavigatedViewer;
   private primeraCarga: boolean = true;
   // Mientras bpmn-js cambia el tipo de un elemento, se ignoran los pasos internos que hace
   private reemplazando: boolean = false;
@@ -90,11 +97,20 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.procesoId = Number(this.route.snapshot.paramMap.get('id'));
+    this.soloLectura = this.usuarioActivo.sesion?.rolAcceso === RolAcceso.SOLO_LECTURA;
   }
 
   ngAfterViewInit(): void {
-    this.modeler = new Modeler({ container: this.lienzo.nativeElement });
-    this.escucharCambios();
+    if (this.soloLectura) {
+      this.modeler = new NavigatedViewer({ container: this.lienzo.nativeElement });
+      // Se puede seleccionar un elemento para ver su detalle, pero no hay paleta ni cambios que guardar
+      this.modeler.get<any>('eventBus').on('selection.changed', (e: any) => {
+        this.alSeleccionar(e.newSelection);
+      });
+    } else {
+      this.modeler = new Modeler({ container: this.lienzo.nativeElement });
+      this.escucharCambios();
+    }
     this.cargar();
   }
 
