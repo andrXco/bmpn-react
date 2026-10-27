@@ -35,8 +35,8 @@
           <td>{{ pool.orden }}</td>
           <td>{{ pool.nombre }}</td>
           <td>{{ pool.tipoParticipante }}</td>
-          <td>{{ pool.empresaParticipanteId ?? '—' }}</td>
-          <td>{{ pool.canalExterno ?? '—' }}</td>
+          <td>{{ pool.empresaParticipanteId ?? 'No aplica' }}</td>
+          <td>{{ pool.canalExterno ?? 'No aplica' }}</td>
           <td>{{ pool.cajaNegra ? 'Sí' : 'No' }}</td>
           <td class="text-end">
             @if (pool.tipoParticipante !== tipoParticipante.SISTEMA_EXTERNO) {

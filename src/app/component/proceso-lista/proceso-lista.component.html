@@ -83,7 +83,7 @@
 
     <div class="d-flex justify-content-between align-items-center">
       <span class="text-muted">
-        Página {{ p.number + 1 }} de {{ p.totalPages }} · {{ p.totalElements }} procesos
+        Página {{ p.number + 1 }} de {{ p.totalPages }} ({{ p.totalElements }} procesos)
       </span>
       <div class="btn-group">
         <button type="button" class="btn btn-outline-secondary" [disabled]="p.first"

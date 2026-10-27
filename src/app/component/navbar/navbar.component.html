@@ -20,7 +20,7 @@
     <div class="d-flex align-items-center gap-2">
       @if (usuarioActivo.usuarioId !== null) {
         @if (usuarioActivo.sesion; as sesion) {
-          <span class="text-light small">{{ sesion.nombreCompleto }} · {{ sesion.rolAcceso }}</span>
+          <span class="text-light small">{{ sesion.nombreCompleto }} ({{ sesion.rolAcceso }})</span>
         } @else {
           <span class="text-light small">Usuario {{ usuarioActivo.usuarioId }}</span>
         }
