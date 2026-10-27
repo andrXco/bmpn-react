@@ -4,15 +4,15 @@ import Modeler from 'bpmn-js/lib/Modeler';
 import NavigatedViewer from 'bpmn-js/lib/NavigatedViewer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
 import { firstValueFrom } from 'rxjs';
-import { ActividadResponse, TipoActividad } from '../../model/actividad';
+import { ActividadResponse } from '../../model/actividad';
 import { AdvertenciasResponse } from '../../model/advertencias';
 import { ArcoRequest, ArcoResponse } from '../../model/arco';
 import { DatosDiagrama, NodoDiagrama, TipoNodo } from '../../model/diagrama';
 import { DatosMensaje } from '../../model/mensaje';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
-import { DisparadorEvento, EventoResponse, TipoEvento } from '../../model/evento';
-import { GatewayResponse, TipoGateway } from '../../model/gateway';
+import { DisparadorEvento, EventoResponse } from '../../model/evento';
+import { GatewayResponse } from '../../model/gateway';
 import { PoolResponse, TipoParticipante } from '../../model/pool';
 import { ProcesoResponse } from '../../model/proceso';
 import { RolAcceso } from '../../model/rol-acceso';
@@ -28,25 +28,11 @@ import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import {
   MARGEN_X, generarXml, idActividad, idArco, idEvento, idGateway, idMensaje, numeroDeId
 } from '../../util/bpmn-xml';
+import {
+  ElementoBpmn, eventoDe, poolDe, prefijo, subtipoDe, tipoActividadDe, tipoDe, tipoGatewayDe
+} from '../../util/elemento-bpmn';
 import { DetalleElementoComponent } from '../detalle-elemento/detalle-elemento.component';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
-
-// Elemento de bpmn-js (forma o flecha). Solo se usan estos campos.
-interface ElementoBpmn {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  parent?: ElementoBpmn;
-  source?: ElementoBpmn;
-  target?: ElementoBpmn;
-  labelTarget?: ElementoBpmn;
-  incoming?: ElementoBpmn[];
-  outgoing?: ElementoBpmn[];
-  businessObject: { name?: string; eventDefinitions?: { $type: string }[] };
-}
 
 // Flujo de mensaje recién dibujado que espera los datos del formulario antes de guardarse
 interface MensajePendiente {
@@ -204,7 +190,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.reemplazando || forma.type === 'label') {
       return;
     }
-    const tipo: TipoNodo | null = this.tipoDe(forma);
+    const tipo: TipoNodo | null = tipoDe(forma);
     this.enCola(async () => {
       if (tipo === null) {
         throw this.errorLocal('Ese elemento no se maneja en este editor.');
@@ -218,20 +204,20 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
           throw this.errorLocal('Una actividad debe quedar dentro de una lane.');
         }
         const creada: ActividadResponse = await firstValueFrom(this.actividadService.crear(this.procesoId, {
-          nombre: nombre || this.nombreLibre(), tipoActividad: this.tipoActividadDe(forma),
+          nombre: nombre || this.nombreLibre(), tipoActividad: tipoActividadDe(forma),
           posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, laneId: ubicacion.laneId, poolId
         }));
         this.actividades.set(creada.id, creada);
         this.cambiarId(forma, idActividad(creada.id), creada.nombre);
       } else if (tipo === 'GATEWAY') {
         const creado: GatewayResponse = await firstValueFrom(this.gatewayService.crear(this.procesoId, {
-          nombre: nombre || 'Gateway', tipoGateway: this.tipoGatewayDe(forma),
+          nombre: nombre || 'Gateway', tipoGateway: tipoGatewayDe(forma),
           posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, poolId
         }));
         this.gateways.set(creado.id, creado);
         this.cambiarId(forma, idGateway(creado.id), creado.nombre);
       } else {
-        const evento = this.eventoDe(forma);
+        const evento = eventoDe(forma);
         const creado: EventoResponse = await firstValueFrom(this.eventoService.crear(this.procesoId, {
           nombre: nombre || 'Evento', tipoEvento: evento.tipoEvento, disparador: evento.disparador, origenExterno: false,
           posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, poolId, laneId: ubicacion.laneId
@@ -323,7 +309,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private alMover(formas: ElementoBpmn[]): void {
-    const nodos: ElementoBpmn[] = formas.filter(f => this.tipoDe(f) !== null);
+    const nodos: ElementoBpmn[] = formas.filter(f => tipoDe(f) !== null);
     if (nodos.length === 0) {
       return;
     }
@@ -344,7 +330,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const objetivo: ElementoBpmn = elemento.labelTarget ?? elemento;
     this.enCola(async () => {
-      if (this.tipoDe(objetivo) !== null) {
+      if (tipoDe(objetivo) !== null) {
         await this.guardarNodo(objetivo, this.ubicacionDe(objetivo), nombre);
       } else if (objetivo.type === 'bpmn:SequenceFlow') {
         const id: number | null = numeroDeId(objetivo.id, 'Arco');
@@ -390,7 +376,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.enCola(async () => {
       const avisos: string[] = [];
       for (const elemento of elementos) {
-        const tipo: TipoNodo | null = this.tipoDe(elemento);
+        const tipo: TipoNodo | null = tipoDe(elemento);
         let respuesta: AdvertenciasResponse | null = null;
         if (tipo === 'ACTIVIDAD') {
           respuesta = await firstValueFrom(this.actividadService.eliminar(this.procesoId, this.numeroDe(elemento)));
@@ -422,7 +408,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private alReemplazar(anterior: ElementoBpmn, nueva: ElementoBpmn): void {
     this.enCola(async () => {
-      if (this.tipoDe(anterior) === null || this.tipoDe(anterior) !== this.tipoDe(nueva)) {
+      if (tipoDe(anterior) === null || tipoDe(anterior) !== tipoDe(nueva)) {
         throw this.errorLocal('Ese cambio de tipo no se maneja en este editor.');
       }
       // El backend conserva el mismo elemento: solo cambia su tipo
@@ -433,8 +419,8 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private alSeleccionar(seleccion: ElementoBpmn[]): void {
     const forma: ElementoBpmn | undefined = seleccion.length === 1 ? seleccion[0] : undefined;
-    const tipo: TipoNodo | null = forma ? this.tipoDe(forma) : null;
-    if (!forma || tipo === null || numeroDeId(forma.id, this.prefijo(tipo)) === null) {
+    const tipo: TipoNodo | null = forma ? tipoDe(forma) : null;
+    if (!forma || tipo === null || numeroDeId(forma.id, prefijo(tipo)) === null) {
       this.seleccionado.set(null);
       return;
     }
@@ -448,11 +434,11 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     ]);
     this.nombreLane.set(this.laneEn(forma)?.businessObject.name ?? 'Sin lane');
     this.seleccionado.set({
-      id, tipo, nombre: nombreDe(forma), subtipo: this.subtipoDe(forma),
+      id, tipo, nombre: nombreDe(forma), subtipo: subtipoDe(forma),
       posicionX: this.ubicacionDe(forma).posicionX,
       advertencias: tipo === 'GATEWAY' ? this.gateways.get(id)?.advertencias ?? []
         : tipo === 'EVENTO' ? this.eventos.get(id)?.advertencias ?? [] : [],
-      recibeMensaje: tipo === 'EVENTO' && this.eventoDe(forma).disparador === DisparadorEvento.MENSAJE_RECEPCION,
+      recibeMensaje: tipo === 'EVENTO' && eventoDe(forma).disparador === DisparadorEvento.MENSAJE_RECEPCION,
       origenExterno: tipo === 'EVENTO' && (this.eventos.get(id)?.origenExterno ?? false)
     });
   }
@@ -480,28 +466,28 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   private async guardarNodo(forma: ElementoBpmn, ubicacion: { posicionX: number; posicionY: number; laneId: number | null },
                             nombreNuevo?: string): Promise<void> {
     const id: number = this.numeroDe(forma);
-    const tipo: TipoNodo | null = this.tipoDe(forma);
+    const tipo: TipoNodo | null = tipoDe(forma);
     if (tipo === 'ACTIVIDAD') {
       const actual: ActividadResponse = this.actividades.get(id) as ActividadResponse;
       if (ubicacion.laneId === null) {
         throw this.errorLocal('Una actividad debe quedar dentro de una lane.');
       }
       const editada: ActividadResponse = await firstValueFrom(this.actividadService.editar(this.procesoId, id, {
-        nombre: nombreNuevo ?? actual.nombre, tipoActividad: this.tipoActividadDe(forma),
+        nombre: nombreNuevo ?? actual.nombre, tipoActividad: tipoActividadDe(forma),
         posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY, laneId: ubicacion.laneId
       }));
       this.actividades.set(id, editada);
     } else if (tipo === 'GATEWAY') {
       const actual: GatewayResponse = this.gateways.get(id) as GatewayResponse;
       const editado: GatewayResponse = await firstValueFrom(this.gatewayService.editar(this.procesoId, id, {
-        nombre: nombreNuevo ?? actual.nombre, tipoGateway: this.tipoGatewayDe(forma),
+        nombre: nombreNuevo ?? actual.nombre, tipoGateway: tipoGatewayDe(forma),
         posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY
       }));
       this.gateways.set(id, editado);
       this.advertencias.set(editado.advertencias);
     } else if (tipo === 'EVENTO') {
       const actual: EventoResponse = this.eventos.get(id) as EventoResponse;
-      const evento = this.eventoDe(forma);
+      const evento = eventoDe(forma);
       const editado: EventoResponse = await firstValueFrom(this.eventoService.editar(this.procesoId, id, {
         nombre: nombreNuevo ?? actual.nombre, tipoEvento: evento.tipoEvento, disparador: evento.disparador,
         // Si deja de recibir mensajes ya no puede ser de origen externo; el backend lo rechazaría
@@ -542,86 +528,13 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ---- Utilidades ----
 
-  private tipoDe(elemento: ElementoBpmn): TipoNodo | null {
-    if (elemento.type === 'label') {
-      return null;
-    }
-    if (is(elemento, 'bpmn:Task')) {
-      return 'ACTIVIDAD';
-    }
-    if (is(elemento, 'bpmn:ExclusiveGateway') || is(elemento, 'bpmn:ParallelGateway') || is(elemento, 'bpmn:InclusiveGateway')) {
-      return 'GATEWAY';
-    }
-    if (is(elemento, 'bpmn:StartEvent') || is(elemento, 'bpmn:EndEvent')
-      || is(elemento, 'bpmn:IntermediateThrowEvent') || is(elemento, 'bpmn:IntermediateCatchEvent')) {
-      return 'EVENTO';
-    }
-    return null;
-  }
-
-  private prefijo(tipo: TipoNodo): string {
-    return tipo === 'ACTIVIDAD' ? 'Actividad' : tipo === 'GATEWAY' ? 'Gateway' : 'Evento';
-  }
-
   private numeroDe(elemento: ElementoBpmn): number {
-    const tipo: TipoNodo | null = this.tipoDe(elemento);
-    const numero: number | null = tipo ? numeroDeId(elemento.id, this.prefijo(tipo)) : null;
+    const tipo: TipoNodo | null = tipoDe(elemento);
+    const numero: number | null = tipo ? numeroDeId(elemento.id, prefijo(tipo)) : null;
     if (numero === null) {
       throw this.errorLocal('El elemento todavía no está guardado.');
     }
     return numero;
-  }
-
-  private tipoActividadDe(forma: ElementoBpmn): TipoActividad {
-    if (is(forma, 'bpmn:UserTask')) {
-      return TipoActividad.USUARIO;
-    }
-    if (is(forma, 'bpmn:ManualTask')) {
-      return TipoActividad.MANUAL;
-    }
-    return is(forma, 'bpmn:ServiceTask') ? TipoActividad.SERVICIO : TipoActividad.TAREA;
-  }
-
-  private tipoGatewayDe(forma: ElementoBpmn): TipoGateway {
-    if (is(forma, 'bpmn:ParallelGateway')) {
-      return TipoGateway.PARALELO;
-    }
-    return is(forma, 'bpmn:InclusiveGateway') ? TipoGateway.INCLUSIVO : TipoGateway.EXCLUSIVO;
-  }
-
-  private eventoDe(forma: ElementoBpmn): { tipoEvento: TipoEvento; disparador: DisparadorEvento } {
-    const conMensaje: boolean = (forma.businessObject.eventDefinitions ?? [])
-      .some(d => d.$type === 'bpmn:MessageEventDefinition');
-    if (is(forma, 'bpmn:StartEvent')) {
-      return { tipoEvento: TipoEvento.INICIO, disparador: conMensaje ? DisparadorEvento.MENSAJE_RECEPCION : DisparadorEvento.NINGUNO };
-    }
-    if (is(forma, 'bpmn:EndEvent')) {
-      return { tipoEvento: TipoEvento.FIN, disparador: conMensaje ? DisparadorEvento.MENSAJE_ENVIO : DisparadorEvento.NINGUNO };
-    }
-    if (is(forma, 'bpmn:IntermediateCatchEvent')) {
-      return { tipoEvento: TipoEvento.INTERMEDIO, disparador: conMensaje ? DisparadorEvento.MENSAJE_RECEPCION : DisparadorEvento.NINGUNO };
-    }
-    return { tipoEvento: TipoEvento.INTERMEDIO, disparador: conMensaje ? DisparadorEvento.MENSAJE_ENVIO : DisparadorEvento.NINGUNO };
-  }
-
-  private subtipoDe(forma: ElementoBpmn): string {
-    const tipo: TipoNodo | null = this.tipoDe(forma);
-    if (tipo === 'ACTIVIDAD') {
-      return this.tipoActividadDe(forma);
-    }
-    if (tipo === 'GATEWAY') {
-      return this.tipoGatewayDe(forma);
-    }
-    const evento = this.eventoDe(forma);
-    return evento.disparador === DisparadorEvento.NINGUNO ? evento.tipoEvento : `${evento.tipoEvento} ${evento.disparador}`;
-  }
-
-  private poolDe(elemento: ElementoBpmn): ElementoBpmn | undefined {
-    let actual: ElementoBpmn | undefined = elemento.parent;
-    while (actual && actual.type !== 'bpmn:Participant') {
-      actual = actual.parent;
-    }
-    return actual;
   }
 
   private numeroPool(pool: ElementoBpmn): number {
@@ -633,7 +546,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private poolIdDe(elemento: ElementoBpmn): number {
-    const pool: ElementoBpmn | undefined = this.poolDe(elemento);
+    const pool: ElementoBpmn | undefined = poolDe(elemento);
     if (!pool) {
       throw this.errorLocal('El elemento debe quedar dentro de un pool.');
     }
@@ -643,22 +556,22 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   // Pool en el que estaba el elemento segun el backend
   private poolOriginal(forma: ElementoBpmn): number | undefined {
     const id: number = this.numeroDe(forma);
-    const tipo: TipoNodo | null = this.tipoDe(forma);
+    const tipo: TipoNodo | null = tipoDe(forma);
     return tipo === 'ACTIVIDAD' ? this.actividades.get(id)?.poolId
       : tipo === 'GATEWAY' ? this.gateways.get(id)?.poolId : this.eventos.get(id)?.poolId;
   }
 
   private laneEn(forma: ElementoBpmn): ElementoBpmn | undefined {
-    const pool: ElementoBpmn | undefined = this.poolDe(forma);
+    const pool: ElementoBpmn | undefined = poolDe(forma);
     const centroY: number = forma.y + forma.height / 2;
     return this.modeler.get<any>('elementRegistry')
-      .filter((e: ElementoBpmn) => e.type === 'bpmn:Lane' && this.poolDe(e) === pool
+      .filter((e: ElementoBpmn) => e.type === 'bpmn:Lane' && poolDe(e) === pool
         && centroY >= e.y && centroY <= e.y + e.height)[0];
   }
 
   // Centro del elemento medido desde la esquina del pool, igual que en generarXml
   private ubicacionDe(forma: ElementoBpmn): { posicionX: number; posicionY: number; laneId: number | null } {
-    const pool: ElementoBpmn | undefined = this.poolDe(forma);
+    const pool: ElementoBpmn | undefined = poolDe(forma);
     const redondear = (valor: number): number => Math.round(valor * 100) / 100;
     const lane: ElementoBpmn | undefined = this.laneEn(forma);
     return {
