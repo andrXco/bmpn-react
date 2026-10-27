@@ -302,7 +302,29 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // bpmn-js ya quito los elementos del dibujo. Se pregunta despues de que termina (por eso el setTimeout):
+  // si el usuario cancela, se deshace el borrado y no se llama al backend.
   private alEliminar(elementos: ElementoBpmn[]): void {
+    setTimeout(() => {
+      if (!confirm(this.textoConfirmacion(elementos))) {
+        this.modeler.get<any>('commandStack').undo();
+        return;
+      }
+      this.borrarEnBackend(elementos);
+    });
+  }
+
+  private textoConfirmacion(elementos: ElementoBpmn[]): string {
+    const nombres: string[] = elementos
+      .filter(e => e.type !== 'label')
+      .map(e => e.businessObject.name || 'elemento sin nombre');
+    if (nombres.length === 1) {
+      return `¿Eliminar "${nombres[0]}" del diagrama?`;
+    }
+    return `¿Eliminar ${nombres.length} elementos del diagrama?`;
+  }
+
+  private borrarEnBackend(elementos: ElementoBpmn[]): void {
     const borrados: Set<string> = new Set(elementos.map(e => e.id));
     this.enCola(async () => {
       const avisos: string[] = [];
