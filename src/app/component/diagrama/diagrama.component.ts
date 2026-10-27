@@ -100,6 +100,11 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   private primeraCarga: boolean = true;
   // Mientras bpmn-js cambia el tipo de un elemento, se ignoran los pasos internos que hace
   private reemplazando: boolean = false;
+  // Al ponerle el id del backend a un elemento, bpmn-js tambien actualiza su etiqueta; eso no es un cambio de nombre
+  private cambiandoId: boolean = false;
+  // Al eliminar, bpmn-js primero borra las etiquetas (deja el nombre vacio); eso tampoco es un cambio de nombre
+  private eliminando: boolean = false;
+  private nombresEliminados: string[] = [];
   // Las peticiones al backend van una detras de otra, en el mismo orden en que se hicieron en el diagrama
   private cola: Promise<void> = Promise.resolve();
 
@@ -197,7 +202,17 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     eventos.on('commandStack.connection.create.postExecuted', (e: any) => this.alConectar(e.context.connection));
     eventos.on('commandStack.connection.reconnect.postExecuted', (e: any) => this.alReconectar(e.context.connection));
     eventos.on('commandStack.elements.move.postExecuted', (e: any) => this.alMover(e.context.shapes));
-    eventos.on('commandStack.elements.delete.postExecuted', (e: any) => this.alEliminar(e.context.elements));
+    eventos.on('commandStack.elements.delete.preExecute', (e: any) => {
+      this.eliminando = true;
+      // Los nombres se guardan antes, porque al terminar bpmn-js ya los dejo vacios
+      this.nombresEliminados = e.context.elements
+        .filter((elemento: ElementoBpmn) => elemento.type !== 'label')
+        .map((elemento: ElementoBpmn) => elemento.businessObject.name || 'elemento sin nombre');
+    });
+    eventos.on('commandStack.elements.delete.postExecuted', (e: any) => {
+      this.eliminando = false;
+      this.alEliminar(e.context.elements);
+    });
     eventos.on('commandStack.element.updateLabel.postExecuted', (e: any) =>
       this.alRenombrar(e.context.element, e.context.newLabel));
     eventos.on('selection.changed', (e: any) => this.alSeleccionar(e.newSelection));
@@ -344,6 +359,9 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private alRenombrar(elemento: ElementoBpmn, nombre: string): void {
+    if (this.cambiandoId || this.eliminando) {
+      return;
+    }
     const objetivo: ElementoBpmn = elemento.labelTarget ?? elemento;
     this.enCola(async () => {
       if (this.tipoDe(objetivo) !== null) {
@@ -370,8 +388,9 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   // bpmn-js ya quito los elementos del dibujo. Se pregunta despues de que termina (por eso el setTimeout):
   // si el usuario cancela, se deshace el borrado y no se llama al backend.
   private alEliminar(elementos: ElementoBpmn[]): void {
+    const nombres: string[] = this.nombresEliminados;
     setTimeout(() => {
-      if (!confirm(this.textoConfirmacion(elementos))) {
+      if (!confirm(this.textoConfirmacion(nombres))) {
         this.modeler.get<any>('commandStack').undo();
         return;
       }
@@ -379,10 +398,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  private textoConfirmacion(elementos: ElementoBpmn[]): string {
-    const nombres: string[] = elementos
-      .filter(e => e.type !== 'label')
-      .map(e => e.businessObject.name || 'elemento sin nombre');
+  private textoConfirmacion(nombres: string[]): string {
     if (nombres.length === 1) {
       return `¿Eliminar "${nombres[0]}" del diagrama?`;
     }
@@ -687,7 +703,9 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (nombre && !elemento.businessObject.name) {
       cambios.name = nombre;
     }
+    this.cambiandoId = true;
     this.modeler.get<any>('modeling').updateProperties(elemento, cambios);
+    this.cambiandoId = false;
   }
 
   private errorLocal(mensaje: string): ErrorDto {
