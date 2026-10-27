@@ -177,6 +177,10 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     eventos.on('commandStack.elements.delete.postExecuted', (e: any) => {
       this.eliminando = false;
+      // Al cambiar el id, bpmn-js tambien borra por su cuenta etiquetas vacias; eso no lo pidio el usuario
+      if (this.cambiandoId || this.nombresEliminados.length === 0) {
+        return;
+      }
       this.alEliminar(e.context.elements);
     });
     eventos.on('commandStack.element.updateLabel.postExecuted', (e: any) =>
