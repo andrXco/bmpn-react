@@ -3,8 +3,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import Modeler from 'bpmn-js/lib/Modeler';
 import NavigatedViewer from 'bpmn-js/lib/NavigatedViewer';
 import { is } from 'bpmn-js/lib/util/ModelUtil';
-import { Observable, firstValueFrom, forkJoin, of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import { ActividadResponse, TipoActividad } from '../../model/actividad';
 import { AdvertenciasResponse } from '../../model/advertencias';
 import { ArcoRequest, ArcoResponse } from '../../model/arco';
@@ -14,19 +13,17 @@ import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
 import { DisparadorEvento, EventoResponse, TipoEvento } from '../../model/evento';
 import { GatewayResponse, TipoGateway } from '../../model/gateway';
-import { LaneResponse } from '../../model/lane';
 import { PoolResponse, TipoParticipante } from '../../model/pool';
 import { ProcesoResponse } from '../../model/proceso';
 import { RolAcceso } from '../../model/rol-acceso';
 import { ActividadService } from '../../service/actividad.service';
 import { ArcoService } from '../../service/arco.service';
+import { DiagramaService } from '../../service/diagrama.service';
 import { EventoService } from '../../service/evento.service';
 import { GatewayService } from '../../service/gateway.service';
-import { LaneService } from '../../service/lane.service';
 import { MensajeService } from '../../service/mensaje.service';
 import { MensajeFormComponent } from '../mensaje-form/mensaje-form.component';
 import { PoolService } from '../../service/pool.service';
-import { ProcesoService } from '../../service/proceso.service';
 import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import {
   MARGEN_X, generarXml, idActividad, idArco, idEvento, idGateway, idMensaje, numeroDeId
@@ -72,9 +69,8 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('lienzo', { static: true }) lienzo!: ElementRef<HTMLDivElement>;
 
   private route = inject(ActivatedRoute);
-  private procesoService = inject(ProcesoService);
+  private diagramaService = inject(DiagramaService);
   private poolService = inject(PoolService);
-  private laneService = inject(LaneService);
   private actividadService = inject(ActividadService);
   private gatewayService = inject(GatewayService);
   private eventoService = inject(EventoService);
@@ -142,23 +138,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     this.seleccionado.set(null);
     this.mensajePendiente.set(null);
 
-    this.poolService.listar(this.procesoId).pipe(
-      switchMap((pools: PoolResponse[]) => {
-        const lanesPorPool: Observable<LaneResponse[][]> = pools.length > 0
-          ? forkJoin(pools.map(pool => this.laneService.listar(this.procesoId, pool.id)))
-          : of([]);
-        return forkJoin({
-          proceso: this.procesoService.obtener(this.procesoId),
-          pools: of(pools),
-          lanes: lanesPorPool,
-          actividades: this.actividadService.listar(this.procesoId),
-          gateways: this.gatewayService.listar(this.procesoId),
-          eventos: this.eventoService.listar(this.procesoId),
-          arcos: this.arcoService.listar(this.procesoId),
-          mensajes: this.mensajeService.listar(this.procesoId)
-        });
-      })
-    ).subscribe({
+    this.diagramaService.cargar(this.procesoId).subscribe({
       next: (datos: DatosDiagrama) => this.dibujar(datos),
       error: (error: ErrorDto) => {
         this.error.set(error);
