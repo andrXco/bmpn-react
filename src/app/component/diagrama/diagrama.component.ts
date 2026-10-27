@@ -100,6 +100,8 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   private primeraCarga: boolean = true;
   // Mientras bpmn-js cambia el tipo de un elemento, se ignoran los pasos internos que hace
   private reemplazando: boolean = false;
+  // Al ponerle el id del backend a un elemento, bpmn-js tambien actualiza su etiqueta; eso no es un cambio de nombre
+  private cambiandoId: boolean = false;
   // Las peticiones al backend van una detras de otra, en el mismo orden en que se hicieron en el diagrama
   private cola: Promise<void> = Promise.resolve();
 
@@ -344,6 +346,9 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private alRenombrar(elemento: ElementoBpmn, nombre: string): void {
+    if (this.cambiandoId) {
+      return;
+    }
     const objetivo: ElementoBpmn = elemento.labelTarget ?? elemento;
     this.enCola(async () => {
       if (this.tipoDe(objetivo) !== null) {
@@ -687,7 +692,9 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
     if (nombre && !elemento.businessObject.name) {
       cambios.name = nombre;
     }
+    this.cambiandoId = true;
     this.modeler.get<any>('modeling').updateProperties(elemento, cambios);
+    this.cambiandoId = false;
   }
 
   private errorLocal(mensaje: string): ErrorDto {
