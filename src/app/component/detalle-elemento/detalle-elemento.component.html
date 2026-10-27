@@ -12,6 +12,22 @@
       <dd class="col-sm-9">{{ nombreLane() }}</dd>
       <dt class="col-sm-3">Posición X</dt>
       <dd class="col-sm-9">{{ nodo().posicionX }}</dd>
+      @if (nodo().recibeMensaje) {
+        <dt class="col-sm-3">Origen externo</dt>
+        <dd class="col-sm-9">
+          @if (soloLectura()) {
+            {{ nodo().origenExterno ? 'Sí' : 'No' }}
+          } @else {
+            <div class="form-check">
+              <input #origen id="origenExterno" type="checkbox" class="form-check-input"
+                [checked]="nodo().origenExterno" (change)="cambiarOrigenExterno.emit(origen.checked)" />
+              <label for="origenExterno" class="form-check-label">
+                El mensaje llega desde fuera del proceso (nadie del diagrama lo envía)
+              </label>
+            </div>
+          }
+        </dd>
+      }
     </dl>
 
     <h6 class="mt-3">Conexiones</h6>

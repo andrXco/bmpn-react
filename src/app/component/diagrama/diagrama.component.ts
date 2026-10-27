@@ -455,7 +455,27 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
       id, tipo, nombre: nombreDe(forma), subtipo: this.subtipoDe(forma),
       posicionX: this.ubicacionDe(forma).posicionX,
       advertencias: tipo === 'GATEWAY' ? this.gateways.get(id)?.advertencias ?? []
-        : tipo === 'EVENTO' ? this.eventos.get(id)?.advertencias ?? [] : []
+        : tipo === 'EVENTO' ? this.eventos.get(id)?.advertencias ?? [] : [],
+      recibeMensaje: tipo === 'EVENTO' && this.eventoDe(forma).disparador === DisparadorEvento.MENSAJE_RECEPCION,
+      origenExterno: tipo === 'EVENTO' && (this.eventos.get(id)?.origenExterno ?? false)
+    });
+  }
+
+  // HU-27: un evento que recibe mensajes puede marcarse de origen externo cuando nadie del proceso se lo envía
+  cambiarOrigenExterno(origenExterno: boolean): void {
+    const nodo: NodoDiagrama | null = this.seleccionado();
+    if (!nodo || nodo.tipo !== 'EVENTO') {
+      return;
+    }
+    this.enCola(async () => {
+      const actual: EventoResponse = this.eventos.get(nodo.id) as EventoResponse;
+      const editado: EventoResponse = await firstValueFrom(this.eventoService.editar(this.procesoId, nodo.id, {
+        nombre: actual.nombre, tipoEvento: actual.tipoEvento, disparador: actual.disparador, origenExterno,
+        posicionX: actual.posicionX, posicionY: actual.posicionY, laneId: actual.laneId
+      }));
+      this.eventos.set(nodo.id, editado);
+      this.advertencias.set(editado.advertencias);
+      this.seleccionado.set({ ...nodo, origenExterno: editado.origenExterno, advertencias: editado.advertencias });
     });
   }
 
@@ -488,7 +508,9 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
       const evento = this.eventoDe(forma);
       const editado: EventoResponse = await firstValueFrom(this.eventoService.editar(this.procesoId, id, {
         nombre: nombreNuevo ?? actual.nombre, tipoEvento: evento.tipoEvento, disparador: evento.disparador,
-        origenExterno: actual.origenExterno, posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY,
+        // Si deja de recibir mensajes ya no puede ser de origen externo; el backend lo rechazaría
+        origenExterno: evento.disparador === DisparadorEvento.MENSAJE_RECEPCION && actual.origenExterno,
+        posicionX: ubicacion.posicionX, posicionY: ubicacion.posicionY,
         laneId: ubicacion.laneId
       }));
       this.eventos.set(id, editado);
