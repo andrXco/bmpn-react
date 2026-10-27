@@ -38,6 +38,7 @@
 @if (seleccionado(); as nodo) {
   <div class="mt-3">
     <app-detalle-elemento [nodo]="nodo" [nombreLane]="nombreLane()" [conexiones]="conexiones()"
+      [soloLectura]="soloLectura" (cambiarOrigenExterno)="cambiarOrigenExterno($event)"
       (cerrar)="seleccionado.set(null)"></app-detalle-elemento>
   </div>
 }
