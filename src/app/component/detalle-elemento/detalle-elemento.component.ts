@@ -10,5 +10,7 @@ export class DetalleElementoComponent {
   nodo = input.required<NodoDiagrama>();
   nombreLane = input<string>('Sin lane');
   conexiones = input<string[]>([]);
+  soloLectura = input<boolean>(false);
   cerrar = output<void>();
+  cambiarOrigenExterno = output<boolean>();
 }

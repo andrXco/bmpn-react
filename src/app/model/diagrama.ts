@@ -29,4 +29,7 @@ export interface NodoDiagrama {
   subtipo: string;
   posicionX: number;
   advertencias: string[];
+  // Solo aplica a eventos que reciben mensajes (HU-27)
+  recibeMensaje: boolean;
+  origenExterno: boolean;
 }
