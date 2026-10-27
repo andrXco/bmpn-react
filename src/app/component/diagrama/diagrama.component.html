@@ -27,6 +27,11 @@
   <p>Cargando...</p>
 }
 
+@if (mensajePendiente(); as pendiente) {
+  <app-mensaje-form [origen]="pendiente.origen" [destino]="pendiente.destino"
+    [notificacionExterna]="pendiente.notificacionExterna"
+    (guardar)="guardarMensaje($event)" (cancelar)="cancelarMensaje()"></app-mensaje-form>
+}
 <div #lienzo class="lienzo"></div>
 
 @if (seleccionado(); as nodo) {

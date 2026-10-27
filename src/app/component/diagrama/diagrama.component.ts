@@ -8,12 +8,13 @@ import { ActividadResponse, TipoActividad } from '../../model/actividad';
 import { AdvertenciasResponse } from '../../model/advertencias';
 import { ArcoRequest, ArcoResponse } from '../../model/arco';
 import { DatosDiagrama, NodoDiagrama, TipoNodo } from '../../model/diagrama';
+import { DatosMensaje } from '../../model/mensaje';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
 import { DisparadorEvento, EventoResponse, TipoEvento } from '../../model/evento';
 import { GatewayResponse, TipoGateway } from '../../model/gateway';
 import { LaneResponse } from '../../model/lane';
-import { PoolResponse } from '../../model/pool';
+import { PoolResponse, TipoParticipante } from '../../model/pool';
 import { ProcesoResponse } from '../../model/proceso';
 import { ActividadService } from '../../service/actividad.service';
 import { ArcoService } from '../../service/arco.service';
@@ -21,6 +22,7 @@ import { EventoService } from '../../service/evento.service';
 import { GatewayService } from '../../service/gateway.service';
 import { LaneService } from '../../service/lane.service';
 import { MensajeService } from '../../service/mensaje.service';
+import { MensajeFormComponent } from '../mensaje-form/mensaje-form.component';
 import { PoolService } from '../../service/pool.service';
 import { ProcesoService } from '../../service/proceso.service';
 import {
@@ -46,9 +48,20 @@ interface ElementoBpmn {
   businessObject: { name?: string; eventDefinitions?: { $type: string }[] };
 }
 
+// Flujo de mensaje recién dibujado que espera los datos del formulario antes de guardarse
+interface MensajePendiente {
+  flecha: ElementoBpmn;
+  origen: string;
+  destino: string;
+  eventoEnvioId: number;
+  eventoRecepcionId: number | null;
+  poolDestinoId: number;
+  notificacionExterna: boolean;
+}
+
 @Component({
   selector: 'app-diagrama',
-  imports: [RouterLink, MensajeErrorComponent, DetalleElementoComponent],
+  imports: [RouterLink, MensajeErrorComponent, DetalleElementoComponent, MensajeFormComponent],
   templateUrl: './diagrama.component.html',
   styleUrl: './diagrama.component.css'
 })
@@ -74,6 +87,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   seleccionado = signal<NodoDiagrama | null>(null);
   nombreLane = signal<string>('Sin lane');
   conexiones = signal<string[]>([]);
+  mensajePendiente = signal<MensajePendiente | null>(null);
 
   private modeler!: Modeler;
   private primeraCarga: boolean = true;
@@ -105,6 +119,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   cargar(): void {
     this.estado.set('loading');
     this.seleccionado.set(null);
+    this.mensajePendiente.set(null);
 
     this.poolService.listar(this.procesoId).pipe(
       switchMap((pools: PoolResponse[]) => {
@@ -234,20 +249,54 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
         if (eventoEnvioId === null) {
           throw this.errorLocal('Un mensaje sale de un evento que envía mensajes.');
         }
-        const creado = await firstValueFrom(this.mensajeService.crear(this.procesoId, {
+        const poolDestinoId: number = destino.type === 'bpmn:Participant' ? this.numeroPool(destino) : this.poolIdDe(destino);
+        const poolDestino: PoolResponse | undefined = this.pools.get(poolDestinoId);
+        // No se guarda todavía: primero se piden la clave de correlación y los campos
+        this.mensajePendiente.set({
+          flecha,
+          origen: origen.businessObject.name || 'Evento sin nombre',
+          destino: destino.businessObject.name || poolDestino?.nombre || 'Pool destino',
           eventoEnvioId,
           eventoRecepcionId: numeroDeId(destino.id, 'Evento'),
-          poolDestinoId: destino.type === 'bpmn:Participant' ? this.numeroPool(destino) : this.poolIdDe(destino),
-          nombre: flecha.businessObject.name || 'Mensaje',
-          claveCorrelacion: null, politicaSinCorrespondencia: null, politicaFallo: null, campos: []
-        }));
-        this.cambiarId(flecha, idMensaje(creado.id), creado.nombre);
-        this.advertencias.set(creado.advertencias);
+          poolDestinoId,
+          notificacionExterna: poolDestino?.tipoParticipante === TipoParticipante.SISTEMA_EXTERNO
+        });
       } else {
         throw this.errorLocal('Esa conexión no se maneja en este editor.');
       }
     });
   }
+
+  guardarMensaje(datos: DatosMensaje): void {
+    const pendiente: MensajePendiente | null = this.mensajePendiente();
+    if (!pendiente) {
+      return;
+    }
+    this.mensajePendiente.set(null);
+    this.enCola(async () => {
+      // Si mientras tanto borraron la flecha del diagrama, ya no hay nada que guardar
+      if (!this.modeler.get<any>('elementRegistry').get(pendiente.flecha.id)) {
+        return;
+      }
+      const creado = await firstValueFrom(this.mensajeService.crear(this.procesoId, {
+        eventoEnvioId: pendiente.eventoEnvioId,
+        eventoRecepcionId: pendiente.eventoRecepcionId,
+        poolDestinoId: pendiente.poolDestinoId,
+        ...datos
+      }));
+      this.cambiarId(pendiente.flecha, idMensaje(creado.id), creado.nombre);
+      this.advertencias.set(creado.advertencias);
+    });
+  }
+
+  cancelarMensaje(): void {
+    const pendiente: MensajePendiente | null = this.mensajePendiente();
+    this.mensajePendiente.set(null);
+    if (pendiente && this.modeler.get<any>('elementRegistry').get(pendiente.flecha.id)) {
+      this.modeler.get<any>('modeling').removeConnection(pendiente.flecha);
+    }
+  }
+
 
   private alReconectar(flecha: ElementoBpmn): void {
     if (this.reemplazando) {
