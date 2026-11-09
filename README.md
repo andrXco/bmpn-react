@@ -21,6 +21,11 @@ hacia el backend en el puerto 8080, por eso no hace falta CORS.
 Usuarios de ejemplo (datos iniciales del backend): `admin@bitweb.co`,
 `editor@bitweb.co` y `lector@bitweb.co`, todos con la clave `BitWeb2026`.
 
+El backend entrega un access token JWT al iniciar sesión. Angular lo guarda solo
+en memoria, lo envía como `Authorization: Bearer` y usa la cookie `HttpOnly` del
+backend para renovar la sesión cuando expira; al recargar la página intenta
+restaurarla mediante el refresh token.
+
 ## Docker
 
 El `Dockerfile` compila la aplicacion con Node y la sirve con nginx. `nginx.conf`
