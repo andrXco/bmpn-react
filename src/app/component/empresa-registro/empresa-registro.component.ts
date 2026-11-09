@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AutenticacionService } from '../../service/autenticacion.service';
 import { EmpresaResponse, RegistrarEmpresaRequest } from '../../model/empresa';
 import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
@@ -17,6 +18,7 @@ import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component'
 export class EmpresaRegistroComponent {
   private fb = inject(FormBuilder);
   private empresaService = inject(EmpresaService);
+  private autenticacionService = inject(AutenticacionService);
   private usuarioActivo = inject(UsuarioActivoService);
 
   form = this.fb.nonNullable.group({
@@ -31,6 +33,7 @@ export class EmpresaRegistroComponent {
 
   estado = signal<EstadoPantalla>('idle');
   empresaCreada = signal<EmpresaResponse | null>(null);
+  sesionIniciada = signal(false);
   error = signal<ErrorDto | null>(null);
 
   campoInvalido = campoInvalido;
@@ -45,14 +48,27 @@ export class EmpresaRegistroComponent {
     this.estado.set('loading');
     this.error.set(null);
     this.empresaCreada.set(null);
+    this.sesionIniciada.set(false);
 
     this.empresaService.registrar(solicitud).subscribe({
       next: (empresa: EmpresaResponse) => {
         this.empresaCreada.set(empresa);
-        // El administrador recién creado queda como usuario activo
-        this.usuarioActivo.establecer(empresa.administradorInicial.id);
-        this.form.reset();
-        this.estado.set('success');
+        this.autenticacionService.iniciarSesion({
+          email: solicitud.emailAdministrador,
+          password: solicitud.password
+        }).subscribe({
+          next: (sesion) => {
+            this.usuarioActivo.iniciarSesion(sesion);
+            this.sesionIniciada.set(true);
+            this.form.reset();
+            this.estado.set('success');
+          },
+          error: () => {
+            this.usuarioActivo.limpiar();
+            this.form.reset();
+            this.estado.set('success');
+          }
+        });
       },
       error: (error: ErrorDto) => {
         this.error.set(error);

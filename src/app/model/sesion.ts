@@ -6,10 +6,16 @@ export interface IniciarSesionRequest {
   password: string;
 }
 
-export interface SesionUsuarioResponse {
+export interface DatosSesionUsuario {
   usuarioId: number;
   empresaId: number;
   email: string;
   nombreCompleto: string;
   rolAcceso: RolAcceso;
+}
+
+export interface SesionUsuarioResponse extends DatosSesionUsuario {
+  accessToken: string;
+  tokenType: 'Bearer';
+  expiresIn: number;
 }
