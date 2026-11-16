@@ -6,11 +6,15 @@
     <p class="mb-1">
       Empresa <strong>{{ empresa.nombre }}</strong> registrada (ID {{ empresa.id }}).
     </p>
-    <p class="mb-2">
-      El administrador {{ empresa.administradorInicial.nombre }} {{ empresa.administradorInicial.apellido }}
-      (ID de usuario {{ empresa.administradorInicial.id }}) quedó como usuario activo.
-    </p>
-    <a class="btn btn-success btn-sm" routerLink="/procesos">Ir a los procesos</a>
+    @if (sesionIniciada()) {
+      <p class="mb-2">
+        {{ empresa.administradorInicial.nombre }} {{ empresa.administradorInicial.apellido }} ya inició sesión.
+      </p>
+      <a class="btn btn-success btn-sm" routerLink="/procesos">Ir a los procesos</a>
+    } @else {
+      <p class="mb-2">La cuenta administradora se creó. Inicia sesión para continuar.</p>
+      <a class="btn btn-success btn-sm" routerLink="/login">Iniciar sesión</a>
+    }
   </div>
 }
 
