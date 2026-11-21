@@ -67,6 +67,8 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   procesoId: number = 0;
   // Un usuario de solo lectura ve el diagrama pero no lo puede modificar (HU-24)
   soloLectura: boolean = false;
+  // Proceso que otra empresa compartió: también se abre en solo lectura (HU-23)
+  compartido: boolean = false;
   estado = signal<EstadoPantalla>('idle');
   error = signal<ErrorDto | null>(null);
   advertencias = signal<string[]>([]);
@@ -102,6 +104,11 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    // El editor se crea con los primeros datos, porque hasta entonces no se sabe si el proceso es compartido
+    this.cargar();
+  }
+
+  private crearEditor(): void {
     if (this.soloLectura) {
       this.modeler = new NavigatedViewer({ container: this.lienzo.nativeElement });
       // Se puede seleccionar un elemento para ver su detalle, pero no hay paleta ni cambios que guardar
@@ -112,7 +119,6 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
       this.modeler = new Modeler({ container: this.lienzo.nativeElement });
       this.escucharCambios();
     }
-    this.cargar();
   }
 
   ngOnDestroy(): void {
@@ -135,6 +141,11 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private async dibujar(datos: DatosDiagrama): Promise<void> {
     this.proceso.set(datos.proceso);
+    if (!this.modeler) {
+      this.compartido = !this.usuarioActivo.esDeMiEmpresa(datos.proceso.empresaId);
+      this.soloLectura = this.soloLectura || this.compartido;
+      this.crearEditor();
+    }
     this.pools = new Map(datos.pools.map(p => [p.id, p]));
     this.actividades = new Map(datos.actividades.map(a => [a.id, a]));
     this.gateways = new Map(datos.gateways.map(g => [g.id, g]));
