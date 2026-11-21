@@ -54,6 +54,12 @@ export class UsuarioActivoService {
     return sesion === null || sesion.rolAcceso === RolAcceso.ADMINISTRADOR;
   }
 
+  // HU-23: un proceso de otra empresa fue compartido y solo se puede consultar; si no se conoce la sesión, decide el backend
+  esDeMiEmpresa(empresaId: number): boolean {
+    const sesion: DatosSesionUsuario | null = this.datosSesion();
+    return sesion === null || sesion.empresaId === empresaId;
+  }
+
   // Resultado de POST /api/sesiones
   iniciarSesion(sesion: SesionUsuarioResponse): void {
     this.id.set(sesion.usuarioId);
