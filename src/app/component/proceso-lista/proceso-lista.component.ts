@@ -7,6 +7,7 @@ import { EstadoPantalla } from '../../model/estado-pantalla';
 import { Pagina } from '../../model/pagina';
 import { EstadoProceso, FiltroProceso, ProcesoResumen } from '../../model/proceso';
 import { ProcesoService } from '../../service/proceso.service';
+import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
 
 @Component({
@@ -17,6 +18,7 @@ import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component'
 export class ProcesoListaComponent implements OnInit {
   private fb = inject(FormBuilder);
   private procesoService = inject(ProcesoService);
+  readonly usuarioActivo = inject(UsuarioActivoService);
 
   // Formulario de filtros
   filtroForm = this.fb.nonNullable.group({

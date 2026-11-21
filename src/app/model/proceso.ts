@@ -39,6 +39,8 @@ export interface ProcesoResponse {
 
 export interface ProcesoResumen {
   id: number;
+  // Empresa dueña: si no es la del usuario, el proceso le fue compartido (HU-23)
+  empresaId: number;
   nombre: string;
   categoria: string;
   estado: EstadoProceso;

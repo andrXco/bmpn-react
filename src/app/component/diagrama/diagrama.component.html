@@ -18,7 +18,11 @@
   </div>
 }
 
-@if (soloLectura) {
+@if (compartido) {
+  <p class="text-muted small mb-2">
+    Otra empresa compartió este proceso contigo: puedes ver el diagrama y el detalle de cada elemento, pero no modificarlo.
+  </p>
+} @else if (soloLectura) {
   <p class="text-muted small mb-2">
     Tu rol es de solo lectura: puedes ver el diagrama y el detalle de cada elemento, pero no modificarlo.
   </p>
