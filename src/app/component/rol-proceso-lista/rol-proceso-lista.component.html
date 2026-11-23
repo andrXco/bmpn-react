@@ -1,6 +1,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">Roles de proceso</h2>
-  <a class="btn btn-primary" routerLink="/roles/nuevo">Nuevo rol</a>
+  @if (usuarioActivo.esAdministrador) {
+    <a class="btn btn-primary" routerLink="/roles/nuevo">Nuevo rol</a>
+  }
 </div>
 
 <form class="row g-2 mb-3" [formGroup]="filtroForm" (ngSubmit)="buscar()">
@@ -50,11 +52,15 @@
               <td>{{ rol.procesosEnUso.length > 0 ? rol.procesosEnUso.join(', ') : 'Ninguno' }}</td>
             <td class="text-end">
               @if (rol.activo) {
-                <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/roles', rol.id, 'editar']">Editar</a>
-                <button type="button" class="btn btn-sm btn-outline-danger"
-                  [disabled]="!rol.puedeEliminarse"
-                  [title]="rol.puedeEliminarse ? 'Eliminar rol' : 'El rol se usa en procesos y no puede eliminarse'"
-                  (click)="eliminar(rol)">Eliminar</button>
+                @if (usuarioActivo.puedeEditar) {
+                  <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/roles', rol.id, 'editar']">Editar</a>
+                }
+                @if (usuarioActivo.esAdministrador) {
+                  <button type="button" class="btn btn-sm btn-outline-danger"
+                    [disabled]="!rol.puedeEliminarse"
+                    [title]="rol.puedeEliminarse ? 'Eliminar rol' : 'El rol se usa en procesos y no puede eliminarse'"
+                    (click)="eliminar(rol)">Eliminar</button>
+                }
               }
             </td>
           </tr>
