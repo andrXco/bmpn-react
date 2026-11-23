@@ -24,7 +24,7 @@ export class ProcesoDetalleComponent implements OnInit {
   constructor(
     private procesoService: ProcesoService,
     private route: ActivatedRoute,
-    private usuarioActivo: UsuarioActivoService
+    readonly usuarioActivo: UsuarioActivoService
   ) {}
 
   ngOnInit(): void {
