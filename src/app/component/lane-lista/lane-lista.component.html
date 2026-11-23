@@ -1,7 +1,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">Lanes del pool {{ poolId }}</h2>
   <div>
-    <a class="btn btn-primary me-2" [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes', 'nuevo']">Nueva lane</a>
+    @if (usuarioActivo.puedeEditar) {
+      <a class="btn btn-primary me-2" [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes', 'nuevo']">Nueva lane</a>
+    }
     <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId, 'pools']">Volver a los pools</a>
   </div>
 </div>
@@ -31,9 +33,13 @@
           <td>{{ lane.orden }}</td>
           <td>{{ lane.nombreRol }}</td>
           <td class="text-end">
-            <a class="btn btn-sm btn-outline-secondary me-1"
-              [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes', lane.id, 'editar']">Cambiar rol</a>
-            <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(lane)">Eliminar</button>
+            @if (usuarioActivo.puedeEditar) {
+              <a class="btn btn-sm btn-outline-secondary me-1"
+                [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes', lane.id, 'editar']">Cambiar rol</a>
+            }
+            @if (usuarioActivo.esAdministrador) {
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(lane)">Eliminar</button>
+            }
           </td>
         </tr>
       }

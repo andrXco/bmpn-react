@@ -9,6 +9,7 @@ import { RolAcceso } from '../../model/rol-acceso';
 import { RolProcesoResponse } from '../../model/rol-proceso';
 import { PoolService } from '../../service/pool.service';
 import { RolProcesoService } from '../../service/rol-proceso.service';
+import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import { campoInvalido } from '../../util/formularios';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
 import { PermisoRolComponent } from '../permiso-rol/permiso-rol.component';
@@ -24,6 +25,7 @@ export class PoolPermisosComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private poolService = inject(PoolService);
   private rolProcesoService = inject(RolProcesoService);
+  readonly usuarioActivo = inject(UsuarioActivoService);
 
   procesoId: number = 0;
   poolId: number = 0;

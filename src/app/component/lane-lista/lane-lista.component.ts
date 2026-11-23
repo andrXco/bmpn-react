@@ -4,6 +4,7 @@ import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
 import { LaneResponse } from '../../model/lane';
 import { LaneService } from '../../service/lane.service';
+import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
 
 // Lanes (carriles) de un pool: cada lane representa un rol de proceso
@@ -21,7 +22,8 @@ export class LaneListaComponent implements OnInit {
 
   constructor(
     private laneService: LaneService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    readonly usuarioActivo: UsuarioActivoService
   ) {}
 
   ngOnInit(): void {

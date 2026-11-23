@@ -1,7 +1,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">Pools del proceso {{ procesoId }}</h2>
   <div>
-    <a class="btn btn-primary me-2" [routerLink]="['/procesos', procesoId, 'pools', 'nuevo']">Nuevo pool</a>
+    @if (usuarioActivo.puedeEditar) {
+      <a class="btn btn-primary me-2" [routerLink]="['/procesos', procesoId, 'pools', 'nuevo']">Nuevo pool</a>
+    }
     <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId]">Volver al proceso</a>
   </div>
 </div>
@@ -47,12 +49,16 @@
               <a class="btn btn-sm btn-outline-primary me-1"
                 [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'permisos']">Roles y permisos</a>
             }
-            <a class="btn btn-sm btn-outline-secondary me-1"
-              [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'editar']">Editar</a>
-            <button type="button" class="btn btn-sm btn-outline-danger"
-              [disabled]="pool.tipoParticipante === tipoParticipante.EMPRESA_PROPIETARIA"
-              [title]="pool.tipoParticipante === tipoParticipante.EMPRESA_PROPIETARIA ? 'El pool de la empresa propietaria no se puede eliminar' : 'Eliminar pool'"
-              (click)="eliminar(pool)">Eliminar</button>
+            @if (usuarioActivo.puedeEditar) {
+              <a class="btn btn-sm btn-outline-secondary me-1"
+                [routerLink]="['/procesos', procesoId, 'pools', pool.id, 'editar']">Editar</a>
+            }
+            @if (usuarioActivo.esAdministrador) {
+              <button type="button" class="btn btn-sm btn-outline-danger"
+                [disabled]="pool.tipoParticipante === tipoParticipante.EMPRESA_PROPIETARIA"
+                [title]="pool.tipoParticipante === tipoParticipante.EMPRESA_PROPIETARIA ? 'El pool de la empresa propietaria no se puede eliminar' : 'Eliminar pool'"
+                (click)="eliminar(pool)">Eliminar</button>
+            }
           </td>
         </tr>
       }

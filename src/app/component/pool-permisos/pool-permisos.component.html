@@ -25,7 +25,9 @@
           <tr>
             <td>{{ rol.nombreRol }}</td>
             <td class="text-end">
-              <button type="button" class="btn btn-sm btn-outline-danger" (click)="quitarRol(rol)">Quitar</button>
+              @if (usuarioActivo.puedeEditar) {
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="quitarRol(rol)">Quitar</button>
+              }
             </td>
           </tr>
         }
@@ -33,25 +35,31 @@
     </table>
   }
 
-  <form class="d-flex gap-2 align-items-start mb-4" [formGroup]="form" (ngSubmit)="agregarRol()">
-    <div>
-      <select class="form-select" formControlName="rolProcesoId" aria-label="Rol de proceso">
-        <option [ngValue]="null">Selecciona un rol...</option>
-        @for (rol of rolesParaAgregar(); track rol.id) {
-          <option [ngValue]="rol.id">{{ rol.nombre }}</option>
+  @if (usuarioActivo.puedeEditar) {
+    <form class="d-flex gap-2 align-items-start mb-4" [formGroup]="form" (ngSubmit)="agregarRol()">
+      <div>
+        <select class="form-select" formControlName="rolProcesoId" aria-label="Rol de proceso">
+          <option [ngValue]="null">Selecciona un rol...</option>
+          @for (rol of rolesParaAgregar(); track rol.id) {
+            <option [ngValue]="rol.id">{{ rol.nombre }}</option>
+          }
+        </select>
+        @if (campoInvalido(form.controls.rolProcesoId)) {
+          <div class="text-danger small">Selecciona un rol.</div>
         }
-      </select>
-      @if (campoInvalido(form.controls.rolProcesoId)) {
-        <div class="text-danger small">Selecciona un rol.</div>
-      }
-    </div>
-    <button type="submit" class="btn btn-primary">Agregar</button>
-  </form>
+      </div>
+      <button type="submit" class="btn btn-primary">Agregar</button>
+    </form>
+  }
 
   <h4>Permisos por rol de acceso</h4>
   <p class="text-muted">Qué puede hacer cada tipo de usuario con este pool y sus lanes. Solo el administrador los cambia.</p>
 
-  @for (permiso of permisos(); track permiso.rolAcceso) {
-    <app-permiso-rol [permiso]="permiso" [guardando]="guardando()" (guardar)="guardarPermiso($event)"></app-permiso-rol>
+  @if (usuarioActivo.esAdministrador) {
+    @for (permiso of permisos(); track permiso.rolAcceso) {
+      <app-permiso-rol [permiso]="permiso" [guardando]="guardando()" (guardar)="guardarPermiso($event)"></app-permiso-rol>
+    }
+  } @else {
+    <p>Solo el administrador puede cambiar los permisos del pool.</p>
   }
 }
