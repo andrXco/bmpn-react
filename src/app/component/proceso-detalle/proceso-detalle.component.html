@@ -11,8 +11,10 @@
       <a class="btn btn-primary me-2" data-testid="btn-diagrama" [routerLink]="['/procesos', p.id, 'diagrama']">Diagrama</a>
       @if (propio()) {
         <a class="btn btn-outline-primary me-2" [routerLink]="['/procesos', p.id, 'pools']">Pools</a>
-        <a class="btn btn-outline-primary me-2" [routerLink]="['/procesos', p.id, 'compartidos']">Compartir</a>
-        @if (p.activo) {
+        @if (usuarioActivo.esAdministrador) {
+          <a class="btn btn-outline-primary me-2" [routerLink]="['/procesos', p.id, 'compartidos']">Compartir</a>
+        }
+        @if (p.activo && usuarioActivo.puedeEditar) {
           <a class="btn btn-outline-secondary me-2" [routerLink]="['/procesos', p.id, 'editar']">Editar</a>
         }
       }

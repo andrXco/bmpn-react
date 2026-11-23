@@ -30,6 +30,9 @@
   <p class="text-muted small mb-2" data-testid="aviso-edicion">
     Arrastra tareas, gateways y eventos desde la paleta de la izquierda. Doble clic para cambiar el nombre.
     Para unir dos elementos, selecciona uno y usa la flecha de su menú.
+    @if (!usuarioActivo.esAdministrador) {
+      Solo el administrador puede eliminar elementos.
+    }
   </p>
 }
 
