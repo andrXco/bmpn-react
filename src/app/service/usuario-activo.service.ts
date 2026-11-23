@@ -50,6 +50,15 @@ export class UsuarioActivoService {
 
   // El módulo de usuarios es solo para administradores; si no se conoce el rol, el backend decide
   get puedeAdministrarUsuarios(): boolean {
+    return this.esAdministrador;
+  }
+
+  get puedeEditar(): boolean {
+    const sesion: DatosSesionUsuario | null = this.datosSesion();
+    return sesion === null || sesion.rolAcceso !== RolAcceso.SOLO_LECTURA;
+  }
+
+  get esAdministrador(): boolean {
     const sesion: DatosSesionUsuario | null = this.datosSesion();
     return sesion === null || sesion.rolAcceso === RolAcceso.ADMINISTRADOR;
   }

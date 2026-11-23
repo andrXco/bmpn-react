@@ -1,6 +1,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">Procesos</h2>
-  <a class="btn btn-primary" routerLink="/procesos/nuevo">Nuevo proceso</a>
+  @if (usuarioActivo.puedeEditar) {
+    <a class="btn btn-primary" routerLink="/procesos/nuevo">Nuevo proceso</a>
+  }
 </div>
 
 <form class="row g-2 mb-3" [formGroup]="filtroForm" (ngSubmit)="buscar()">
@@ -79,8 +81,12 @@
                   <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/procesos', proceso.id, 'pools']">Pools</a>
                 }
                 @if (proceso.activo && usuarioActivo.esDeMiEmpresa(proceso.empresaId)) {
+                @if (usuarioActivo.puedeEditar) {
                   <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/procesos', proceso.id, 'editar']">Editar</a>
+                }
+                @if (usuarioActivo.esAdministrador) {
                   <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(proceso)">Eliminar</button>
+                }
                 }
               </td>
             </tr>

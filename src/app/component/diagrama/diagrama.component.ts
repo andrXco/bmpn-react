@@ -62,7 +62,7 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
   private eventoService = inject(EventoService);
   private arcoService = inject(ArcoService);
   private mensajeService = inject(MensajeService);
-  private usuarioActivo = inject(UsuarioActivoService);
+  readonly usuarioActivo = inject(UsuarioActivoService);
 
   procesoId: number = 0;
   // Un usuario de solo lectura ve el diagrama pero no lo puede modificar (HU-24)
@@ -117,6 +117,10 @@ export class DiagramaComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     } else {
       this.modeler = new Modeler({ container: this.lienzo.nativeElement });
+      if (!this.usuarioActivo.esAdministrador) {
+        // Solo el administrador elimina: bpmn-js consulta esta regla y quita la opción de borrar del menú
+        this.modeler.get<any>('eventBus').on('commandStack.elements.delete.canExecute', 2000, () => false);
+      }
       this.escucharCambios();
     }
   }

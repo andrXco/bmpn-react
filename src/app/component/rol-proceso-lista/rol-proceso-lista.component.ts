@@ -6,6 +6,7 @@ import { EstadoPantalla } from '../../model/estado-pantalla';
 import { Pagina } from '../../model/pagina';
 import { FiltroRolProceso, RolProcesoResponse } from '../../model/rol-proceso';
 import { RolProcesoService } from '../../service/rol-proceso.service';
+import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
 
 @Component({
@@ -16,6 +17,7 @@ import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component'
 export class RolProcesoListaComponent implements OnInit {
   private fb = inject(FormBuilder);
   private rolProcesoService = inject(RolProcesoService);
+  readonly usuarioActivo = inject(UsuarioActivoService);
 
   // Formulario de filtros
   filtroForm = this.fb.nonNullable.group({

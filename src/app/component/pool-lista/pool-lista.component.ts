@@ -4,6 +4,7 @@ import { ErrorDto } from '../../model/error-dto';
 import { EstadoPantalla } from '../../model/estado-pantalla';
 import { PoolResponse, TipoParticipante } from '../../model/pool';
 import { PoolService } from '../../service/pool.service';
+import { UsuarioActivoService } from '../../service/usuario-activo.service';
 import { MensajeErrorComponent } from '../mensaje-error/mensaje-error.component';
 
 @Component({
@@ -20,7 +21,8 @@ export class PoolListaComponent implements OnInit {
 
   constructor(
     private poolService: PoolService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    readonly usuarioActivo: UsuarioActivoService
   ) {}
 
   ngOnInit(): void {

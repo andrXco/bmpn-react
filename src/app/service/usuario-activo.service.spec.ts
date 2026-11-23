@@ -33,4 +33,26 @@ describe('UsuarioActivoService', () => {
   it('sin datos de sesión deja que el backend decida', () => {
     expect(service.esDeMiEmpresa(2)).toBe(true);
   });
+
+    it('el lector no edita ni administra', () => {
+    service.iniciarSesion({ ...sesion, rolAcceso: RolAcceso.SOLO_LECTURA });
+
+    expect(service.puedeEditar).toBe(false);
+    expect(service.esAdministrador).toBe(false);
+  });
+
+  it('el editor edita pero no administra', () => {
+    service.iniciarSesion(sesion);
+
+    expect(service.puedeEditar).toBe(true);
+    expect(service.esAdministrador).toBe(false);
+    expect(service.puedeAdministrarUsuarios).toBe(false);
+  });
+
+  it('el administrador puede todo', () => {
+    service.iniciarSesion({ ...sesion, rolAcceso: RolAcceso.ADMINISTRADOR });
+
+    expect(service.puedeEditar).toBe(true);
+    expect(service.esAdministrador).toBe(true);
+  });
 });
