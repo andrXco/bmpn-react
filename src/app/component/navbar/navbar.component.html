@@ -10,7 +10,7 @@
       </li>
       @if (usuarioActivo.usuarioId !== null && usuarioActivo.puedeAdministrarUsuarios) {
         <li class="nav-item">
-          <a class="nav-link" routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
+          <a class="nav-link" data-testid="nav-usuarios" routerLink="/usuarios" routerLinkActive="active">Usuarios</a>
         </li>
       }
       <li class="nav-item">
@@ -20,11 +20,11 @@
     <div class="d-flex align-items-center gap-2">
       @if (usuarioActivo.usuarioId !== null) {
         @if (usuarioActivo.sesion; as sesion) {
-          <span class="text-light small">{{ sesion.nombreCompleto }} ({{ sesion.rolAcceso }})</span>
+          <span class="text-light small" data-testid="usuario-sesion">{{ sesion.nombreCompleto }} ({{ sesion.rolAcceso }})</span>
         } @else {
           <span class="text-light small">Usuario {{ usuarioActivo.usuarioId }}</span>
         }
-        <button type="button" class="btn btn-sm btn-outline-light" (click)="salir()">Salir</button>
+        <button type="button" class="btn btn-sm btn-outline-light" data-testid="btn-salir" (click)="salir()">Salir</button>
       } @else {
         <a class="btn btn-sm btn-light" routerLink="/login">Iniciar sesión</a>
       }

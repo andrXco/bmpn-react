@@ -42,7 +42,7 @@
     </div>
   }
 
-  <button type="submit" class="btn btn-primary me-2" [disabled]="estado() === 'loading'">
+  <button type="submit" class="btn btn-primary me-2" data-testid="btn-guardar-proceso" [disabled]="estado() === 'loading'">
     {{ estado() === 'loading' ? 'Guardando...' : 'Guardar' }}
   </button>
   <a class="btn btn-outline-secondary" routerLink="/procesos">Cancelar</a>

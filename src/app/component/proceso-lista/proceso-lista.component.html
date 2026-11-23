@@ -1,8 +1,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">Procesos</h2>
-  @if (usuarioActivo.puedeEditar) {
-    <a class="btn btn-primary" routerLink="/procesos/nuevo">Nuevo proceso</a>
-  }
+  <a class="btn btn-primary" routerLink="/procesos/nuevo">Nuevo proceso</a>
 </div>
 
 <form class="row g-2 mb-3" [formGroup]="filtroForm" (ngSubmit)="buscar()">
@@ -56,14 +54,14 @@
         </thead>
         <tbody>
           @for (proceso of p.content; track proceso.id) {
-            <tr>
+            <tr data-testid="fila-proceso">
               <td>
                 {{ proceso.nombre }}
                 @if (!proceso.activo) {
                   <span class="badge bg-secondary ms-1">Eliminado</span>
                 }
                 @if (!usuarioActivo.esDeMiEmpresa(proceso.empresaId)) {
-                  <span class="badge bg-info text-dark ms-1">Compartido</span>
+                  <span class="badge bg-info text-dark ms-1" data-testid="badge-compartido">Compartido</span>
                 }
               </td>
               <td>{{ proceso.categoria }}</td>
@@ -81,12 +79,8 @@
                   <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/procesos', proceso.id, 'pools']">Pools</a>
                 }
                 @if (proceso.activo && usuarioActivo.esDeMiEmpresa(proceso.empresaId)) {
-                @if (usuarioActivo.puedeEditar) {
                   <a class="btn btn-sm btn-outline-secondary me-1" [routerLink]="['/procesos', proceso.id, 'editar']">Editar</a>
-                }
-                @if (usuarioActivo.esAdministrador) {
                   <button type="button" class="btn btn-sm btn-outline-danger" (click)="eliminar(proceso)">Eliminar</button>
-                }
                 }
               </td>
             </tr>

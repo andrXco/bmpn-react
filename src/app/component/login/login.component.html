@@ -21,7 +21,7 @@
           <div class="text-danger small">La contraseña es obligatoria.</div>
         }
       </div>
-      <button type="submit" class="btn btn-primary" [disabled]="estado() === 'loading'">
+      <button type="submit" class="btn btn-primary" data-testid="btn-ingresar" [disabled]="estado() === 'loading'">
         {{ estado() === 'loading' ? 'Ingresando...' : 'Ingresar' }}
       </button>
     </form>
