@@ -43,6 +43,13 @@ docker run -d --name bmpn-front --add-host=host.docker.internal:host-gateway `
 
 Abre `http://localhost:4200`.
 
+## Releases y staging
+
+El CI de `deploy` prueba el frontend con el backend y publica la imagen que
+pasó las pruebas. Consulta las [versiones publicadas](https://github.com/andrXco/bmpn-react/releases),
+el [historial de despliegues](https://github.com/andrXco/bmpn-react/deployments) y
+la [guía para probar staging](https://github.com/andrXco/bmpn/blob/deploy/deploy/README.md).
+
 ## Pruebas
 
 ### Unitarias (Vitest)
