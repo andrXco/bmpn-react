@@ -29,14 +29,16 @@ restaurarla mediante el refresh token.
 ## Docker
 
 El `Dockerfile` compila la aplicacion con Node y la sirve con nginx. `nginx.conf`
-devuelve `index.html` para las rutas de Angular. La version compilada llama a la
-API en `http://localhost:8080/api` (el backend tiene CORS para `http://localhost:4200`).
+devuelve `index.html` para las rutas de Angular y reenvia `/api` al backend. La
+aplicacion usa la ruta relativa `/api`, de modo que desarrollo y despliegue
+pueden compartir origen.
 
 Con el backend corriendo (en su propio Docker, repositorio `bmpn`):
 
 ```powershell
 docker build -t bmpn-front .
-docker run -d --name bmpn-front -p 4200:80 bmpn-front
+docker run -d --name bmpn-front --add-host=host.docker.internal:host-gateway `
+  -e BACKEND_URL=http://host.docker.internal:8080 -p 4200:80 bmpn-front
 ```
 
 Abre `http://localhost:4200`.
