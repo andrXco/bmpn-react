@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: andrXco/bmpn
-          ref: development
+          ref: ${{ github.ref == 'refs/heads/deploy' && 'deploy' || 'development' }}
           path: backend
           token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
 
@@ -161,3 +161,51 @@ jobs:
             docker tag "bmpn-react:${GITHUB_SHA}" "$IMAGE:$TAG"
             docker push "$IMAGE:$TAG"
           done
+
+      - name: Empaquetar imagen verificada para staging
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy'
+        run: |
+          docker tag "bmpn-react:$GITHUB_SHA" "bmpn-release-front:$GITHUB_SHA"
+          docker save "bmpn-release-front:$GITHUB_SHA" | gzip -1 > image.tar.gz
+          sha256sum image.tar.gz > image.tar.gz.sha256
+          (( $(stat -c %s image.tar.gz) < 2147483648 ))
+
+      - name: Pasar imagen al job de publicación
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy'
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-image
+          path: |
+            image.tar.gz
+            image.tar.gz.sha256
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  staging-release:
+    name: Publicar imagen de staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy'
+    needs: docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: staging-image
+      - name: Entregar imagen verificada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release="staging-$GITHUB_SHA"
+          if gh release view "$release" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '[.assets[].name] | sort | join(" ")' | grep -Fxq 'image.tar.gz image.tar.gz.sha256'; then
+            exit 0
+          fi
+          sha256sum --check image.tar.gz.sha256
+          gh release create "$release" image.tar.gz image.tar.gz.sha256 \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "Staging $GITHUB_SHA" \
+            --notes "Imagen de la rama deploy creada después de pasar el CI."
