@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unitarias:
+    name: Compilar y pruebas unitarias
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v6
+
+      - name: Configurar Node 24 y cache de npm
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas unitarias (Vitest)
+        run: npm run test:ci
+
+      - name: Compilar la version de produccion
+        run: npx ng build
+
+  e2e:
+    name: Pruebas de sistema (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: unitarias
+    steps:
+      - name: Descargar el frontend
+        uses: actions/checkout@v6
+
+      # Si el repositorio del backend es privado, crear el secreto BACKEND_REPO_TOKEN
+      # con un token de solo lectura sobre andrXco/bmpn
+      - name: Descargar el backend
+        uses: actions/checkout@v6
+        with:
+          repository: andrXco/bmpn
+          path: backend
+          token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
+
+      - name: Levantar PostgreSQL y la API
+        working-directory: backend
+        run: |
+          export BMPN_JWT_SECRET="$(openssl rand -base64 48)"
+          docker compose up -d --build --wait
+
+      - name: Configurar Node 24 y cache de npm
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Instalar dependencias y navegador
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas E2E
+        run: npm run e2e
+
+      - name: Registros de la API si algo falla
+        if: ${{ failure() }}
+        working-directory: backend
+        run: docker compose logs app
+
+      - name: Conservar reporte de Playwright
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-e2e-playwright
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
