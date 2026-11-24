@@ -6,7 +6,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npx ng build
+ARG ANGULAR_CONFIGURATION=production
+RUN npx ng build --configuration "$ANGULAR_CONFIGURATION"
 
 # Etapa 2: nginx sirve los archivos compilados
 FROM nginx:1.27-alpine
