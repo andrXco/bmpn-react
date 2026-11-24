@@ -56,14 +56,14 @@
         </thead>
         <tbody>
           @for (proceso of p.content; track proceso.id) {
-            <tr>
+            <tr data-testid="fila-proceso">
               <td>
                 {{ proceso.nombre }}
                 @if (!proceso.activo) {
                   <span class="badge bg-secondary ms-1">Eliminado</span>
                 }
                 @if (!usuarioActivo.esDeMiEmpresa(proceso.empresaId)) {
-                  <span class="badge bg-info text-dark ms-1">Compartido</span>
+                  <span class="badge bg-info text-dark ms-1" data-testid="badge-compartido">Compartido</span>
                 }
               </td>
               <td>{{ proceso.categoria }}</td>

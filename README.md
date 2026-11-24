@@ -41,6 +41,48 @@ docker run -d --name bmpn-front -p 4200:80 bmpn-front
 
 Abre `http://localhost:4200`.
 
+## Pruebas
+
+### Unitarias (Vitest)
+
+```powershell
+npm test            # modo interactivo
+npm run test:ci     # una sola ejecución, como en CI
+```
+
+### Sistema / extremo a extremo (Playwright)
+
+Las pruebas E2E están en `e2e/` (archivos `*.e2e.ts`) y usan un navegador real contra el
+frontend, el backend y PostgreSQL. Cada prueba crea sus propias empresas y usuarios por la
+API, así que no depende de datos previos ni deja conflictos.
+
+Primera vez:
+
+```powershell
+npm install -D @playwright/test
+npx playwright install chromium
+```
+
+Ejecución (con el backend corriendo: `docker compose up -d --wait` en el repositorio `bmpn`):
+
+```powershell
+npm run e2e           # levanta ng serve si no está corriendo y ejecuta las pruebas
+npm run e2e:ui        # modo visual para depurar
+npm run e2e:reporte   # abre el reporte HTML (playwright-report/)
+```
+
+Variables opcionales: `E2E_BASE_URL` (por defecto `http://localhost:4200`), `E2E_API_URL`
+(por defecto `http://localhost:8080/api`) y `E2E_SIN_SERVIDOR=true` si el frontend ya corre
+en Docker. En CI (`.github/workflows/ci.yml`) se levanta el backend con Docker Compose y se
+publica el reporte como artefacto.
+
+| Archivo | Flujo |
+| --- | --- |
+| `autenticacion.e2e.ts` | Login, error de credenciales, rutas protegidas, renovación al recargar, cookie HttpOnly, cierre de sesión |
+| `procesos.e2e.ts` | Crear proceso, validación del formulario, aislamiento entre empresas, módulo de usuarios por rol |
+| `editor.e2e.ts` | Editor bpmn-js: crear tarea desde la paleta, renombrar, conectar con un arco, editor sin permiso de borrado |
+| `visor.e2e.ts` | Visor en solo lectura, detalle de elementos, proceso compartido (HU-23), empresa sin invitación |
+
 ## Estructura
 
 ```text
