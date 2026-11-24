@@ -50,6 +50,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: andrXco/bmpn
+          ref: development
           path: backend
           token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
 
