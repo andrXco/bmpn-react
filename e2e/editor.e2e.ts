@@ -81,18 +81,20 @@ test.describe('Editor de diagramas', () => {
     expect(arcos).toEqual([expect.objectContaining({ origenId: origen, destinoId: destino })]);
   });
 
-  test('el editor no puede eliminar actividades: solo el administrador', async ({ page, api }) => {
+  test('el editor no tiene la opción de eliminar: solo el administrador', async ({ page, api }) => {
     const actividadId: number = await api.crearActividad(editor, procesoId, laneId, 'Revisar', 120);
     await iniciarSesion(page, editor.email);
     await abrirDiagrama(page, procesoId);
 
-    const intento = esperarApi(page, 'DELETE', new RegExp(`/actividades/${actividadId}`));
+    await expect(page.getByTestId('aviso-edicion')).toContainText('Solo el administrador puede eliminar elementos');
     await elemento(page, `Actividad_${actividadId}`).click();
-    await page.locator('.djs-context-pad .entry[data-action="delete"]').click();
-    expect((await intento).status()).toBe(403);
 
-    // Se muestra el error y el diagrama recarga la actividad que sigue guardada
-    await expect(page.getByTestId('mensaje-error')).toBeVisible();
+    // El menú de la actividad sigue ofreciendo conectar, pero no borrar
+    await expect(page.locator('.djs-context-pad .entry[data-action="connect"]')).toBeVisible();
+    await expect(page.locator('.djs-context-pad .entry[data-action="delete"]')).toHaveCount(0);
+
+    // Con la tecla Supr tampoco se borra
+    await page.keyboard.press('Delete');
     await expect(elemento(page, `Actividad_${actividadId}`)).toBeVisible();
     expect(await api.actividades(editor, procesoId)).toHaveLength(1);
   });

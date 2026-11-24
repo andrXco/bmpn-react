@@ -47,17 +47,17 @@ test.describe('Visor de diagramas', () => {
     await expect(page.locator('.djs-direct-editing-parent')).toBeHidden();
   });
 
-  test('si el lector intenta editar el proceso, el backend lo rechaza', async ({ page, api }) => {
+  test('el lector no ve la opción de editar y si escribe la URL vuelve al listado', async ({ page, api }) => {
     await iniciarSesion(page, lector.email);
+    await page.goto(`/procesos/${procesoId}`);
+    await expect(page.getByTestId('titulo-proceso')).toHaveText(nombreProceso);
+    await expect(page.getByRole('link', { name: 'Editar' })).toHaveCount(0);
+
+    // El guard de rutas lo devuelve al listado sin abrir el formulario
     await page.goto(`/procesos/${procesoId}/editar`);
-    await expect(page.locator('#nombre')).toHaveValue(nombreProceso);
+    await expect(page).toHaveURL(/\/procesos$/);
+    await expect(page.locator('#nombre')).toHaveCount(0);
 
-    await page.locator('#nombre').fill('Cambiado por el lector');
-    const intento = page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes(`/procesos/${procesoId}`));
-    await page.getByTestId('btn-guardar-proceso').click();
-    expect((await intento).status()).toBe(403);
-
-    await expect(page.getByTestId('mensaje-error')).toBeVisible();
     const procesos = await api.procesos(lector);
     expect(procesos.find(p => p.id === procesoId)?.nombre).toBe(nombreProceso);
   });
