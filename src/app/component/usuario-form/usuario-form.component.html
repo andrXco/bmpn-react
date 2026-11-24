@@ -1,0 +1,53 @@
+<h2>Nuevo usuario</h2>
+<p class="text-muted">El usuario se crea dentro de tu empresa.</p>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+<form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="nombre" class="form-label">Nombre</label>
+      <input id="nombre" class="form-control" formControlName="nombre" />
+      @if (campoInvalido(form.controls.nombre)) {
+        <div class="text-danger small">El nombre es obligatorio (máx. 100).</div>
+      }
+    </div>
+    <div class="col-md-6 mb-3">
+      <label for="apellido" class="form-label">Apellido</label>
+      <input id="apellido" class="form-control" formControlName="apellido" />
+      @if (campoInvalido(form.controls.apellido)) {
+        <div class="text-danger small">El apellido es obligatorio (máx. 100).</div>
+      }
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="email" class="form-label">Correo</label>
+      <input id="email" type="email" class="form-control" formControlName="email" />
+      @if (campoInvalido(form.controls.email)) {
+        <div class="text-danger small">Ingresa un correo válido.</div>
+      }
+    </div>
+    <div class="col-md-3 mb-3">
+      <label for="password" class="form-label">Contraseña</label>
+      <input id="password" type="password" class="form-control" formControlName="password"
+        autocomplete="new-password" />
+      @if (campoInvalido(form.controls.password)) {
+        <div class="text-danger small">Debe tener entre 8 y 100 caracteres.</div>
+      }
+    </div>
+    <div class="col-md-3 mb-3">
+      <label for="rolAcceso" class="form-label">Rol de acceso</label>
+      <select id="rolAcceso" class="form-select" formControlName="rolAcceso">
+        @for (rol of roles; track rol) {
+          <option [value]="rol">{{ rol }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary me-2" [disabled]="estado() === 'loading'">
+    {{ estado() === 'loading' ? 'Guardando...' : 'Guardar' }}
+  </button>
+  <a class="btn btn-outline-secondary" routerLink="/usuarios">Cancelar</a>
+</form>

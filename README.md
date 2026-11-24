@@ -1,59 +1,105 @@
-# BmpnAngular
+# BPMN frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.2.
+Aplicacion Angular del editor y visor de procesos BPMN. Consume la API REST del
+repositorio [bmpn](https://github.com/andrXco/bmpn).
 
-## Development server
+## Requisitos
 
-To start a local development server, run:
+- Node.js 22.22 o superior (o 24) con npm.
+- El backend corriendo en `http://localhost:8080`.
 
-```bash
-ng serve
+## Desarrollo
+
+```powershell
+npm install
+npm start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Abre `http://localhost:4200`. `proxy.conf.json` reenvia las peticiones a `/api`
+hacia el backend en el puerto 8080, por eso no hace falta CORS.
 
-## Code scaffolding
+Usuarios de ejemplo (datos iniciales del backend): `admin@bitweb.co`,
+`editor@bitweb.co` y `lector@bitweb.co`, todos con la clave `BitWeb2026`.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+El backend entrega un access token JWT al iniciar sesión. Angular lo guarda solo
+en memoria, lo envía como `Authorization: Bearer` y usa la cookie `HttpOnly` del
+backend para renovar la sesión cuando expira; al recargar la página intenta
+restaurarla mediante el refresh token.
 
-```bash
-ng generate component component-name
+## Docker
+
+El `Dockerfile` compila la aplicacion con Node y la sirve con nginx. `nginx.conf`
+devuelve `index.html` para las rutas de Angular y reenvia `/api` al backend. La
+aplicacion usa la ruta relativa `/api`, de modo que desarrollo y despliegue
+pueden compartir origen.
+
+Con el backend corriendo (en su propio Docker, repositorio `bmpn`):
+
+```powershell
+docker build -t bmpn-front .
+docker run -d --name bmpn-front --add-host=host.docker.internal:host-gateway `
+  -e BACKEND_URL=http://host.docker.internal:8080 -p 4200:80 bmpn-front
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Abre `http://localhost:4200`.
 
-```bash
-ng generate --help
+## Releases y staging
+
+El CI de `deploy` prueba el frontend con el backend y publica la imagen que
+pasó las pruebas. Consulta las [versiones publicadas](https://github.com/andrXco/bmpn-react/releases),
+el [historial de despliegues](https://github.com/andrXco/bmpn-react/deployments) y
+la [guía para probar staging](https://github.com/andrXco/bmpn/blob/deploy/deploy/README.md).
+
+## Pruebas
+
+### Unitarias (Vitest)
+
+```powershell
+npm test            # modo interactivo
+npm run test:ci     # una sola ejecución, como en CI
 ```
 
-## Building
+### Sistema / extremo a extremo (Playwright)
 
-To build the project run:
+Las pruebas E2E están en `e2e/` (archivos `*.e2e.ts`) y usan un navegador real contra el
+frontend, el backend y PostgreSQL. Cada prueba crea sus propias empresas y usuarios por la
+API, así que no depende de datos previos ni deja conflictos.
 
-```bash
-ng build
+Primera vez:
+
+```powershell
+npm install -D @playwright/test
+npx playwright install chromium
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Ejecución (con el backend corriendo: `docker compose up -d --wait` en el repositorio `bmpn`):
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
+```powershell
+npm run e2e           # levanta ng serve si no está corriendo y ejecuta las pruebas
+npm run e2e:ui        # modo visual para depurar
+npm run e2e:reporte   # abre el reporte HTML (playwright-report/)
 ```
 
-## Running end-to-end tests
+Variables opcionales: `E2E_BASE_URL` (por defecto `http://localhost:4200`), `E2E_API_URL`
+(por defecto `http://localhost:8080/api`) y `E2E_SIN_SERVIDOR=true` si el frontend ya corre
+en Docker. En CI (`.github/workflows/ci.yml`) se levanta el backend con Docker Compose y se
+publica el reporte como artefacto.
 
-For end-to-end (e2e) testing, run:
+| Archivo | Flujo |
+| --- | --- |
+| `autenticacion.e2e.ts` | Login, error de credenciales, rutas protegidas, renovación al recargar, cookie HttpOnly, cierre de sesión |
+| `procesos.e2e.ts` | Crear proceso, validación del formulario, aislamiento entre empresas, módulo de usuarios por rol |
+| `editor.e2e.ts` | Editor bpmn-js: crear tarea desde la paleta, renombrar, conectar con un arco, editor sin permiso de borrado |
+| `visor.e2e.ts` | Visor en solo lectura, detalle de elementos, proceso compartido (HU-23), empresa sin invitación |
 
-```bash
-ng e2e
+## Estructura
+
+```text
+src/app/
+├── model/        interfaces que reflejan los DTO del backend
+├── service/      llamadas a la API con HttpClient
+├── component/    pantallas y componentes
+├── interceptor/  manejo global de errores HTTP
+├── guard/        rutas que necesitan sesion
+└── util/         funciones compartidas
 ```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

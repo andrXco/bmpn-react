@@ -1,0 +1,109 @@
+<div class="card border-primary mb-3">
+  <div class="card-body">
+    <h5 class="card-title">{{ notificacionExterna() ? 'Nueva notificación externa' : 'Nuevo mensaje' }}</h5>
+    <p class="text-muted small">De <strong>{{ origen() }}</strong> a <strong>{{ destino() }}</strong>.</p>
+
+    <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="nombreMensaje" class="form-label">Nombre del mensaje</label>
+          <input id="nombreMensaje" class="form-control" formControlName="nombre" placeholder="Ej: NotificarAprobacion" />
+          @if (campoInvalido(form.controls.nombre)) {
+            <div class="text-danger small">El nombre es obligatorio (máx. 150 caracteres).</div>
+          }
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="claveCorrelacion" class="form-label">Clave de correlación</label>
+          <input id="claveCorrelacion" class="form-control" formControlName="claveCorrelacion"
+            placeholder="Ej: numeroSolicitud" />
+          <div class="form-text">Dato que indica a qué caso corresponde el mensaje.</div>
+          @if (campoInvalido(form.controls.claveCorrelacion)) {
+            <div class="text-danger small">La clave de correlación es obligatoria (máx. 150 caracteres).</div>
+          }
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="politicaSinCorrespondencia" class="form-label">Si no corresponde a ningún caso</label>
+          <select id="politicaSinCorrespondencia" class="form-select" formControlName="politicaSinCorrespondencia">
+            <option [ngValue]="null">Sin definir</option>
+            @for (opcion of opcionesSinCorrespondencia; track opcion.valor) {
+              <option [ngValue]="opcion.valor">{{ opcion.texto }}</option>
+            }
+          </select>
+        </div>
+        @if (notificacionExterna()) {
+          <div class="col-md-6 mb-3">
+            <label for="politicaFallo" class="form-label">Si la notificación falla</label>
+            <select id="politicaFallo" class="form-select" formControlName="politicaFallo">
+              <option [ngValue]="null">Sin definir</option>
+              @for (opcion of opcionesFallo; track opcion.valor) {
+                <option [ngValue]="opcion.valor">{{ opcion.texto }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+
+      <h6>Campos del mensaje</h6>
+      @if (campos().length === 0) {
+        <p class="text-muted small">El mensaje todavía no tiene campos.</p>
+      } @else {
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Tipo de dato</th>
+              <th>Obligatorio</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (campo of campos(); track campo.nombre; let i = $index) {
+              <tr>
+                <td>{{ campo.nombre }}</td>
+                <td>{{ campo.tipoDato }}</td>
+                <td>{{ campo.obligatorio ? 'Sí' : 'No' }}</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="quitarCampo(i)">Quitar</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      <div [formGroup]="campoForm" class="row g-2 align-items-end mb-3">
+        <div class="col-md-5">
+          <label for="nombreCampo" class="form-label small">Nombre del campo</label>
+          <input id="nombreCampo" class="form-control form-control-sm" formControlName="nombre" />
+        </div>
+        <div class="col-md-3">
+          <label for="tipoDato" class="form-label small">Tipo de dato</label>
+          <select id="tipoDato" class="form-select form-select-sm" formControlName="tipoDato">
+            @for (tipo of tiposDato; track tipo) {
+              <option [value]="tipo">{{ tipo }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-md-2 form-check ms-2 mb-1">
+          <input id="obligatorio" type="checkbox" class="form-check-input" formControlName="obligatorio" />
+          <label for="obligatorio" class="form-check-label small">Obligatorio</label>
+        </div>
+        <div class="col-md-1">
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="agregarCampo()">Agregar</button>
+        </div>
+      </div>
+      @if (campoInvalido(campoForm.controls.nombre)) {
+        <div class="text-danger small mb-2">Escribe el nombre del campo (máx. 100 caracteres).</div>
+      }
+      @if (errorCampo()) {
+        <div class="text-danger small mb-2">{{ errorCampo() }}</div>
+      }
+
+      <button type="submit" class="btn btn-primary me-2">Guardar mensaje</button>
+      <button type="button" class="btn btn-outline-secondary" (click)="cancelar.emit()">Cancelar</button>
+    </form>
+  </div>
+</div>

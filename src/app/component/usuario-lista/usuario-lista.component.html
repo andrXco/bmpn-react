@@ -1,0 +1,61 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Usuarios</h2>
+  <a class="btn btn-primary" routerLink="/usuarios/nuevo">Nuevo usuario</a>
+</div>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (estado() === 'loading') {
+  <p>Cargando...</p>
+}
+
+@if (estado() === 'success' && usuarios().length === 0) {
+  <p class="text-muted">No hay usuarios registrados.</p>
+}
+
+@if (usuarios().length > 0) {
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Correo</th>
+        <th>Rol de acceso</th>
+        <th>Creado</th>
+        <th>Activo</th>
+        <th class="text-end">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (usuario of usuarios(); track usuario.id) {
+        <tr>
+          <td>{{ usuario.id }}</td>
+          <td>{{ usuario.nombre }} {{ usuario.apellido }}</td>
+          <td>{{ usuario.email }}</td>
+          <td>
+            @if (usuario.activo) {
+              <select class="form-select form-select-sm" [value]="usuario.rolAcceso"
+                (change)="cambiarRol(usuario, $any($event.target).value)">
+                @for (rol of roles; track rol) {
+                  <option [value]="rol" [selected]="rol === usuario.rolAcceso">{{ rol }}</option>
+                }
+              </select>
+            } @else {
+              {{ usuario.rolAcceso }}
+            }
+          </td>
+          <td>{{ usuario.fechaCreacion | date: 'mediumDate' }}</td>
+          <td>{{ usuario.activo ? 'Sí' : 'No' }}</td>
+          <td class="text-end">
+            @if (usuario.activo) {
+              <button type="button" class="btn btn-sm btn-outline-danger"
+                [disabled]="usuario.id === usuarioActivo.usuarioId"
+                [title]="usuario.id === usuarioActivo.usuarioId ? 'No puedes desactivarte a ti mismo' : 'Desactivar usuario'"
+                (click)="desactivar(usuario)">Desactivar</button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

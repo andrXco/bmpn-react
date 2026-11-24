@@ -1,0 +1,211 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unitarias:
+    name: Compilar y pruebas unitarias
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v6
+
+      - name: Configurar Node 24 y cache de npm
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Pruebas unitarias (Vitest)
+        run: npm run test:ci
+
+      - name: Compilar la version de produccion
+        run: npx ng build
+
+  e2e:
+    name: Pruebas de sistema (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: unitarias
+    steps:
+      - name: Descargar el frontend
+        uses: actions/checkout@v6
+
+      # Si el repositorio del backend es privado, crear el secreto BACKEND_REPO_TOKEN
+      # con un token de solo lectura sobre andrXco/bmpn
+      - name: Descargar el backend
+        uses: actions/checkout@v6
+        with:
+          repository: andrXco/bmpn
+          ref: ${{ github.ref == 'refs/heads/deploy' && 'deploy' || 'development' }}
+          path: backend
+          token: ${{ secrets.BACKEND_REPO_TOKEN || github.token }}
+
+      - name: Levantar PostgreSQL y la API
+        working-directory: backend
+        run: |
+          export BMPN_JWT_SECRET="$(openssl rand -base64 48)"
+          docker compose up -d --build --wait
+
+      - name: Configurar Node 24 y cache de npm
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Instalar dependencias y navegador
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Ejecutar pruebas E2E
+        run: npm run e2e
+
+      - name: Registros de la API si algo falla
+        if: ${{ failure() }}
+        working-directory: backend
+        run: docker compose logs app
+
+      - name: Conservar reporte de Playwright
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-e2e-playwright
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  docker:
+    name: Construir, probar y publicar imagen
+    runs-on: ubuntu-latest
+    needs: e2e
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v6
+
+      - name: Construir imagen Docker
+        run: docker build --pull --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" --label "org.opencontainers.image.revision=${{ github.sha }}" -t bmpn-react:${{ github.sha }} .
+
+      - name: Probar Nginx y rutas de Angular
+        run: |
+          docker run -d --name bmpn-front-smoke -p 8080:80 \
+            -e BACKEND_URL=http://127.0.0.1:1 bmpn-react:${GITHUB_SHA}
+
+          READY=0
+          for i in $(seq 1 20); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/healthz)" = "200" ]; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            docker logs bmpn-front-smoke
+            exit 1
+          fi
+
+          curl -fsS http://localhost:8080/ | grep -q '<app-root' || {
+            echo "La pagina principal no devolvio la app Angular"
+            exit 1
+          }
+
+          RUTA=$(curl -s -o /tmp/bmpn-ruta.html -w '%{http_code}' http://localhost:8080/procesos)
+          if [ "$RUTA" != "200" ] || ! grep -q '<app-root' /tmp/bmpn-ruta.html; then
+            echo "La ruta Angular /procesos respondio $RUTA"
+            exit 1
+          fi
+
+          API=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/sesiones || true)
+          case "$API" in
+            502|504) echo "OK: /api se reenvia al backend (respuesta $API al upstream de prueba)" ;;
+            *) echo "La ruta /api no se reenvio al backend: HTTP $API"; docker logs bmpn-front-smoke; exit 1 ;;
+          esac
+
+      - name: Iniciar sesion en GHCR
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Publicar imagen en GHCR
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          IMAGE: ghcr.io/andrxco/bmpn-react
+        run: |
+          TAGS="sha-${GITHUB_SHA::7}"
+          case "$GITHUB_REF" in
+            refs/heads/development) TAGS="$TAGS development" ;;
+            refs/heads/main) TAGS="$TAGS latest" ;;
+            refs/tags/v*) TAGS="$TAGS ${GITHUB_REF_NAME#v}" ;;
+          esac
+          for TAG in $TAGS; do
+            docker tag "bmpn-react:${GITHUB_SHA}" "$IMAGE:$TAG"
+            docker push "$IMAGE:$TAG"
+          done
+
+      - name: Empaquetar imagen verificada para staging
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy'
+        run: |
+          docker tag "bmpn-react:$GITHUB_SHA" "bmpn-release-front:$GITHUB_SHA"
+          docker save "bmpn-release-front:$GITHUB_SHA" | gzip -1 > image.tar.gz
+          sha256sum image.tar.gz > image.tar.gz.sha256
+          (( $(stat -c %s image.tar.gz) < 2147483648 ))
+
+      - name: Pasar imagen al job de publicación
+        if: github.event_name == 'push' && github.ref == 'refs/heads/deploy'
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-image
+          path: |
+            image.tar.gz
+            image.tar.gz.sha256
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  staging-release:
+    name: Publicar imagen de staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy'
+    needs: docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: staging-image
+      - name: Entregar imagen verificada
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release="staging-$GITHUB_SHA"
+          if gh release view "$release" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '[.assets[].name] | sort | join(" ")' | grep -Fxq 'image.tar.gz image.tar.gz.sha256'; then
+            exit 0
+          fi
+          sha256sum --check image.tar.gz.sha256
+          gh release create "$release" image.tar.gz image.tar.gz.sha256 \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --latest=false --title "Staging $GITHUB_SHA" \
+            --notes "Imagen de la rama deploy creada después de pasar el CI."

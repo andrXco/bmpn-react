@@ -1,1 +1,19 @@
-/* You can add global styles to this file, and also import other style files */
+/* Editor BPMN: se ocultan las opciones que el backend no maneja.
+   Los pools y lanes se crean en sus propias pantallas. */
+.djs-palette .entry[data-action="create.data-object"],
+.djs-palette .entry[data-action="create.data-store"],
+.djs-palette .entry[data-action="create.subprocess-expanded"],
+.djs-palette .entry[data-action="create.participant-expanded"],
+.djs-palette .entry[data-action="create.group"],
+.djs-context-pad .entry[data-action="append.text-annotation"],
+.djs-context-pad .entry[data-action="append.compensation-activity"],
+.djs-context-pad .entry[data-action="append.receive-task"],
+.djs-context-pad .entry[data-action="append.timer-intermediate-event"],
+.djs-context-pad .entry[data-action="append.condition-intermediate-event"],
+.djs-context-pad .entry[data-action="append.signal-intermediate-event"],
+.djs-context-pad .entry[data-action="lane-insert-above"],
+.djs-context-pad .entry[data-action="lane-insert-below"],
+.djs-context-pad .entry[data-action="lane-divide-two"],
+.djs-context-pad .entry[data-action="lane-divide-three"] {
+  display: none;
+}

@@ -1,0 +1,33 @@
+<h2>{{ laneId === null ? 'Nueva lane' : 'Cambiar el rol de la lane' }}</h2>
+<p class="text-muted">
+  Pool {{ poolId }} del proceso {{ procesoId }}. Un pool de sistema externo no puede tener lanes y no se
+  puede repetir un rol dentro del mismo pool.
+</p>
+
+<app-mensaje-error [error]="error()"></app-mensaje-error>
+
+@if (roles().length === 0 && estado() !== 'loading') {
+  <div class="alert alert-warning">
+    No hay roles de proceso. Primero <a routerLink="/roles/nuevo">crea un rol</a>.
+  </div>
+}
+
+<form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+  <div class="mb-3" style="max-width: 420px">
+    <label for="rolProcesoId" class="form-label">Rol de proceso</label>
+    <select id="rolProcesoId" class="form-select" formControlName="rolProcesoId">
+      <option [ngValue]="null">Selecciona un rol...</option>
+      @for (rol of roles(); track rol.id) {
+        <option [ngValue]="rol.id">{{ rol.nombre }}</option>
+      }
+    </select>
+    @if (campoInvalido(form.controls.rolProcesoId)) {
+      <div class="text-danger small">Selecciona un rol.</div>
+    }
+  </div>
+
+  <button type="submit" class="btn btn-primary me-2" [disabled]="estado() === 'loading'">
+    {{ estado() === 'loading' ? 'Guardando...' : 'Guardar' }}
+  </button>
+  <a class="btn btn-outline-secondary" [routerLink]="['/procesos', procesoId, 'pools', poolId, 'lanes']">Cancelar</a>
+</form>
