@@ -76,7 +76,8 @@ test.describe('Editor de diagramas', () => {
     expect(respuesta.status()).toBe(201);
     const arco = await respuesta.json();
 
-    await expect(elemento(page, `Arco_${arco.id}`)).toBeVisible();
+    // La flecha es horizontal y mide 0 de alto, por eso se revisa que exista y no que sea visible
+    await expect(elemento(page, `Arco_${arco.id}`)).toHaveCount(1);
     const arcos = await api.arcos(editor, procesoId);
     expect(arcos).toEqual([expect.objectContaining({ origenId: origen, destinoId: destino })]);
   });
