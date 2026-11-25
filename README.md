@@ -15,6 +15,8 @@ npm install
 npm start
 ```
 
+
+
 Abre `http://localhost:4200`. `proxy.conf.json` reenvia las peticiones a `/api`
 hacia el backend en el puerto 8080, por eso no hace falta CORS.
 
