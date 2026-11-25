@@ -1,3 +1,13 @@
+.bpmn-navbar {
+  background-color: #1c1f4a;
+}
+
+.navbar-logo {
+  display: block;
+  width: auto;
+  height: 2.5rem;
+}
+
 /* Editor BPMN: se ocultan las opciones que el backend no maneja.
    Los pools y lanes se crean en sus propias pantallas. */
 .djs-palette .entry[data-action="create.data-object"],
