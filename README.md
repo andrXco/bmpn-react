@@ -18,6 +18,8 @@ npm start
 Abre `http://localhost:4200`. `proxy.conf.json` reenvia las peticiones a `/api`
 hacia el backend en el puerto 8080, por eso no hace falta CORS.
 
+
+
 Usuarios de ejemplo (datos iniciales del backend): `admin@bitweb.co`,
 `editor@bitweb.co` y `lector@bitweb.co`, todos con la clave `BitWeb2026`.
 
